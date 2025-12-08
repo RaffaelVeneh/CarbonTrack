@@ -3,14 +3,17 @@ const cors = require('cors');
 const dotenv = require('dotenv');
 require('./config/db'); // Panggil koneksi database
 
+const authRoutes = require('./routes/authRoutes');
+
 dotenv.config();
 const app = express();
 
 // Middleware
 app.use(cors());
 app.use(express.json());
+app.use('/api/auth', authRoutes);
 
-// Test Route (Cek apakah server hidup)
+// Test Route
 app.get('/', (req, res) => {
     res.send('🚀 CarbonTrack Backend is Running!');
 });
