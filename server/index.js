@@ -4,6 +4,7 @@ const dotenv = require('dotenv');
 require('./config/db'); // Panggil koneksi database
 
 const authRoutes = require('./routes/authRoutes');
+const logRoutes = require('./routes/logRoutes');
 
 dotenv.config();
 const app = express();
@@ -12,6 +13,7 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 app.use('/api/auth', authRoutes);
+app.use('/api/logs', logRoutes);
 
 // Test Route
 app.get('/', (req, res) => {
