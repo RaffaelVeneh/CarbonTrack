@@ -5,6 +5,7 @@ require('./config/db'); // Panggil koneksi database
 
 const authRoutes = require('./routes/authRoutes');
 const logRoutes = require('./routes/logRoutes');
+const missionRoutes = require('./routes/missionRoutes');
 
 dotenv.config();
 const app = express();
@@ -14,6 +15,7 @@ app.use(cors());
 app.use(express.json());
 app.use('/api/auth', authRoutes);
 app.use('/api/logs', logRoutes);
+app.use('/api/missions', missionRoutes);
 
 // Test Route
 app.get('/', (req, res) => {
