@@ -1,20 +1,52 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Sidebar from '@/components/Sidebar';
-import { Send, Bot, User } from 'lucide-react';
+import { Send, Bot, User, RotateCcw } from 'lucide-react';
+
+const STORAGE_KEY = 'ecobot_chat_history';
+const DEFAULT_MESSAGE = { role: 'bot', text: 'Halo! Saya EcoBot 🌱. Tanyakan tips hemat listrik, transportasi, atau cara mengurangi sampah plastik!' };
+
+// Helper function untuk load chat dari localStorage
+const loadChatHistory = () => {
+  if (typeof window === 'undefined') return [DEFAULT_MESSAGE]; // SSR safety
+  
+  try {
+    const savedChat = localStorage.getItem(STORAGE_KEY);
+    if (savedChat) {
+      const parsed = JSON.parse(savedChat);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        return parsed;
+      }
+    }
+  } catch (error) {
+    console.error('Failed to load chat history:', error);
+  }
+  return [DEFAULT_MESSAGE];
+};
 
 export default function AssistantPage() {
   const [input, setInput] = useState('');
-  const [messages, setMessages] = useState([
-    { role: 'bot', text: 'Halo! Saya EcoBot 🌱. Tanyakan tips hemat listrik, transportasi, atau cara mengurangi sampah plastik!' }
-  ]);
+  const [messages, setMessages] = useState(loadChatHistory); // Lazy initialization
   const [loading, setLoading] = useState(false);
+
+  // Save chat history ke localStorage setiap kali messages berubah
+  useEffect(() => {
+    if (messages.length > 0) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(messages));
+    }
+  }, [messages]);
+
+  // Handle new chat - reset ke default message
+  const handleNewChat = () => {
+    setMessages([DEFAULT_MESSAGE]);
+    setInput('');
+    localStorage.removeItem(STORAGE_KEY);
+  };
   
   const handleSend = async (e) => {
     e.preventDefault();
     if (!input.trim()) return;
-
 
     const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
@@ -49,17 +81,29 @@ export default function AssistantPage() {
       <main className="flex-1 p-0 ml-64 flex flex-col h-screen">
         
         {/* Header Chat - Lebih Compact */}
-        <div className="bg-white px-6 py-4 shadow-sm border-b border-gray-100 flex items-center gap-3">
-          <div className="p-2 bg-gradient-to-br from-emerald-400 to-teal-500 rounded-xl text-white shadow-md">
-            <Bot size={24} />
+        <div className="bg-white px-6 py-4 shadow-sm border-b border-gray-100 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-gradient-to-br from-emerald-400 to-teal-500 rounded-xl text-white shadow-md">
+              <Bot size={24} />
+            </div>
+            <div>
+              <h1 className="text-lg font-bold text-gray-800">EcoBot Assistant</h1>
+              <p className="text-xs text-green-600 font-medium flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></span> 
+                Siap membantu
+              </p>
+            </div>
           </div>
-          <div>
-            <h1 className="text-lg font-bold text-gray-800">EcoBot Assistant</h1>
-            <p className="text-xs text-green-600 font-medium flex items-center gap-1.5">
-              <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></span> 
-              Siap membantu
-            </p>
-          </div>
+          
+          {/* Tombol Chat Baru */}
+          <button
+            onClick={handleNewChat}
+            className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white text-sm font-medium rounded-full shadow-md transition-all hover:shadow-lg"
+            title="Mulai percakapan baru"
+          >
+            <RotateCcw size={16} />
+            <span>Chat Baru</span>
+          </button>
         </div>
 
         {/* Area Chat Bubble - Reduced Padding */}
