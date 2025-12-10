@@ -56,7 +56,8 @@ exports.login = async (req, res) => {
                 id: user.id,
                 username: user.username,
                 email: user.email,
-                level: user.current_level
+                level: user.current_level,
+                island_health: user.island_health
             }
         });
     } catch (error) {
