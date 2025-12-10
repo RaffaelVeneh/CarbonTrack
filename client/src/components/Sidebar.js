@@ -2,7 +2,8 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { LayoutDashboard, Target, Award, User, LogOut } from 'lucide-react';
+import { LayoutDashboard, Target, Award, Users, Bot, LogOut, Settings } from 'lucide-react'; 
+// Note: Icon FileText dihapus karena menu sertifikat tidak dipakai
 
 export default function Sidebar() {
   const pathname = usePathname();
@@ -18,7 +19,10 @@ export default function Sidebar() {
     { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
     { name: 'Misi & Poin', href: '/missions', icon: Target },
     { name: 'Leaderboard', href: '/leaderboard', icon: Award },
-    { name: 'Profil', href: '/profile', icon: User },
+    { name: 'Profil', href: '/profile', icon: Users },
+    { name: 'Eco AI', href: '/assistant', icon: Bot },
+    { name: 'Pengaturan', href: '/settings', icon: Settings }
+    // Menu Sertifikat sudah dihapus dari sini
   ];
 
   return (
@@ -33,6 +37,7 @@ export default function Sidebar() {
         {menuItems.map((item) => {
           const Icon = item.icon;
           const isActive = pathname === item.href;
+          
           return (
             <Link
               key={item.href}
