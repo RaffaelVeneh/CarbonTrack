@@ -9,6 +9,7 @@ export default function HistoryPage() {
   const [filter, setFilter] = useState('daily'); // Default: Hari Ini
   const [loading, setLoading] = useState(false);
   const [user, setUser] = useState(null);
+  const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
   // Load User saat pertama buka
   useEffect(() => {
@@ -27,7 +28,7 @@ export default function HistoryPage() {
     setLoading(true);
     try {
       // Panggil API yang baru kita buat
-      const res = await fetch(`http://localhost:5000/api/logs/history/${user.id}?filter=${filter}`);
+      const res = await fetch(`${API_URL}/logs/history/${user.id}?filter=${filter}`);
       const data = await res.json();
       setLogs(data);
     } catch (err) {

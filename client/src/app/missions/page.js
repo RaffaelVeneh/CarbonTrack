@@ -18,9 +18,10 @@ export default function MissionsPage() {
     if (userData) fetchMissions(userData.id);
   }, []);
 
+  const API_URL = process.env.NEXT_PUBLIC_API_URL;
   const fetchMissions = async (userId) => {
     try {
-      const res = await fetch(`http://localhost:5000/api/missions/${userId}`);
+      const res = await fetch(`${API_URL}/missions/${userId}`);
       const data = await res.json();
       setMissions(data.missions);
       setLevelInfo(data.levelInfo); // Simpan info level
@@ -31,7 +32,7 @@ export default function MissionsPage() {
     // ... (Kode handleClaim sama seperti sebelumnya) ...
     // Pastikan memanggil fetchMissions(user.id) setelah sukses
     try {
-        const res = await fetch('http://localhost:5000/api/missions/claim', {
+        const res = await fetch(`${API_URL}/missions/claim`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ userId: user.id, missionId }),

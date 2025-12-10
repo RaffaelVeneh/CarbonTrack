@@ -10,7 +10,7 @@ export default function AssistantPage() {
     { role: 'bot', text: 'Halo! Saya EcoBot 🌱. Tanyakan tips hemat listrik, transportasi, atau cara mengurangi sampah plastik!' }
   ]);
   const [loading, setLoading] = useState(false);
-
+  const API_URL = process.env.NEXT_PUBLIC_API_URL;
   const handleSend = async (e) => {
     e.preventDefault();
     if (!input.trim()) return;
@@ -23,7 +23,7 @@ export default function AssistantPage() {
 
     try {
       // 2. Kirim ke Backend AI
-      const res = await fetch('http://localhost:5000/api/ai/ask', {
+      const res = await fetch(`${API_URL}/api/ai/ask`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ question: userMessage.text })

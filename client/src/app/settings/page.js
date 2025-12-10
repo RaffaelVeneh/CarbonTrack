@@ -8,6 +8,7 @@ export default function SettingsPage() {
   const [formData, setFormData] = useState({ username: '', email: '' });
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
+  const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
   useEffect(() => {
     const storedUser = JSON.parse(localStorage.getItem('user'));
@@ -24,7 +25,7 @@ export default function SettingsPage() {
     const storedUser = JSON.parse(localStorage.getItem('user'));
 
     try {
-      const res = await fetch('http://localhost:5000/api/users/update', {
+      const res = await fetch(`${API_URL}/users/update`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 

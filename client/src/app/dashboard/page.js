@@ -31,16 +31,18 @@ export default function Dashboard() {
     bgColor: 'bg-gray-200' 
   });
 
+  const API_URL = process.env.NEXT_PUBLIC_API_URL;
+  
   // FUNGSI 1: Ambil Data Terbaru (Stats + Health User)
   const fetchAllData = useCallback(async (userId) => {
     try {
       // A. Ambil Statistik Emisi
-      const resStats = await fetch(`http://localhost:5000/api/logs/summary/${userId}`);
+      const resStats = await fetch(`${API_URL}/logs/summary/${userId}`);
       const dataStats = await resStats.json();
       if (resStats.ok) setStats(dataStats);
 
       // B. Ambil Data Profil User TERBARU (Supaya Health selalu update)
-      const resUser = await fetch(`http://localhost:5000/api/users/profile/${userId}`);
+      const resUser = await fetch(`${API_URL}/users/profile/${userId}`);
       const dataUser = await resUser.json();
       
       if (resUser.ok) {
@@ -176,7 +178,7 @@ export default function Dashboard() {
         {/* --- GRAFIK --- */}
         <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 mb-8">
           <h2 className="text-lg font-bold text-gray-800 mb-6">Tren Emisi Minggu Ini</h2>
-          <div className="h-80 w-full">
+          <div className="h-80 w-full" style={{ minHeight: '300px' }}>
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={stats.graphData}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E5E7EB" />

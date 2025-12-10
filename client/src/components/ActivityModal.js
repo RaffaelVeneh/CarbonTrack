@@ -25,13 +25,13 @@ export default function ActivityModal({ isOpen, onClose, userId, onRefresh }) {
         .catch(err => console.error(err));
     }
   }, [isOpen]);
-
+  const API_URL = process.env.NEXT_PUBLIC_API_URL;
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
 
     try {
-      const res = await fetch('http://localhost:5000/api/logs', {
+      const res = await fetch(`${API_URL}/logs`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

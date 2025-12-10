@@ -7,11 +7,12 @@ import { User, Calendar, Award, Leaf, Zap, Shield } from 'lucide-react';
 export default function ProfilePage() {
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
+  const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
   useEffect(() => {
     const storedUser = JSON.parse(localStorage.getItem('user'));
     if (storedUser) {
-      fetch(`http://localhost:5000/api/users/profile/${storedUser.id}`)
+      fetch(`${API_URL}/users/profile/${storedUser.id}`)
         .then(res => res.json())
         .then(data => {
           setProfile(data);

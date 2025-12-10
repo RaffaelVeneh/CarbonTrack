@@ -7,10 +7,11 @@ import { Trophy, Crown, Medal, Search } from 'lucide-react';
 export default function LeaderboardPage() {
   const [leaders, setLeaders] = useState([]);
   const [loading, setLoading] = useState(true);
+  const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
   useEffect(() => {
     // Ambil data leaderboard dari Backend
-    fetch('http://localhost:5000/api/users/leaderboard')
+    fetch(`${API_URL}/users/leaderboard`)
       .then(res => res.json())
       .then(data => {
         setLeaders(data);
