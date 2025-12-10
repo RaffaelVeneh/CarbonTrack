@@ -177,18 +177,26 @@ export default function Dashboard() {
 
         {/* --- GRAFIK --- */}
         <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 mb-8">
-          <h2 className="text-lg font-bold text-gray-800 mb-6">Tren Emisi Minggu Ini</h2>
-          <div className="h-80 w-full" style={{ minHeight: '300px' }}>
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={stats.graphData}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E5E7EB" />
-                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#9CA3AF', fontSize: 12 }} dy={10}/>
-                <YAxis axisLine={false} tickLine={false} tick={{ fill: '#9CA3AF', fontSize: 12 }} />
-                <Tooltip contentStyle={{ borderRadius: '10px' }} cursor={{ stroke: '#10B981' }} />
-                <Line type="monotone" dataKey="co2" stroke="#10B981" strokeWidth={3} dot={{ r: 4, fill: '#10B981' }} />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
+            <h2 className="text-lg font-bold text-gray-800 mb-6">Tren Emisi Minggu Ini</h2>
+            
+            {/* Berikan tinggi eksplisit (h-80 = 320px) agar Recharts bisa hitung ukuran */}
+            <div className="h-80 w-full relative">
+                {stats.graphData && stats.graphData.length > 0 ? (
+                <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={stats.graphData}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E5E7EB" />
+                    <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#9CA3AF', fontSize: 12 }} dy={10}/>
+                    <YAxis axisLine={false} tickLine={false} tick={{ fill: '#9CA3AF', fontSize: 12 }} />
+                    <Tooltip contentStyle={{ borderRadius: '10px' }} cursor={{ stroke: '#10B981' }} />
+                    <Line type="monotone" dataKey="co2" stroke="#10B981" strokeWidth={3} dot={{ r: 4, fill: '#10B981' }} />
+                    </LineChart>
+                </ResponsiveContainer>
+                ) : (
+                <div className="absolute inset-0 flex items-center justify-center text-gray-400">
+                    <p>Belum ada data grafik</p>
+                </div>
+                )}
+            </div>
         </div>
 
         {/* Modal dengan Auto Refresh Data */}
