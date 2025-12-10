@@ -37,14 +37,12 @@ exports.getUserProfile = async (req, res) => {
     try {
         const { userId } = req.params;
 
-        // 1. Data User
         const [userRows] = await db.execute('SELECT id, username, email, current_level, total_xp, island_health, created_at FROM users WHERE id = ?', [userId]);
         if (userRows.length === 0) return res.status(404).json({ message: 'User not found' });
 
-        // 2. Statistik Total Emisi
-        const [logRows] = await db.execute('SELECT SUM(carbon_produced) as total_emission, COUNT(*) as total_logs FROM daily_logs WHERE user_id = ?', [userId]);
+        // FIX: Ubah 'carbon_produced' jadi 'carbon_emitted'
+        const [logRows] = await db.execute('SELECT SUM(carbon_emitted) as total_emission, COUNT(*) as total_logs FROM daily_logs WHERE user_id = ?', [userId]);
 
-        // 3. Daftar Badge
         const [badgeRows] = await db.execute(`
             SELECT b.name, b.icon, b.description 
             FROM user_badges ub 
