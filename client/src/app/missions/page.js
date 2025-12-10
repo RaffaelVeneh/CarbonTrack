@@ -23,6 +23,8 @@ export default function MissionsPage() {
     try {
       const res = await fetch(`${API_URL}/missions/${userId}`);
       const data = await res.json();
+      console.log('Missions data:', data);
+      console.log('First mission:', data.missions[0]);
       setMissions(data.missions);
       setLevelInfo(data.levelInfo); // Simpan info level
     } catch (err) { console.error(err); }
@@ -38,15 +40,26 @@ export default function MissionsPage() {
             body: JSON.stringify({ userId: user.id, missionId }),
         });
         const result = await res.json();
+        console.log('Claim result:', result);
 
         if (res.ok) {
             fetchMissions(user.id); // Refresh data
             if (result.leveledUp) {
                 setShowConfetti(true);
-                setModalInfo({ show: true, type: 'levelup', title: `Level Up ke ${result.newLevel}! 🎉`, message: 'Hebat! Terus jaga bumi.' });
+                setModalInfo({ 
+                    show: true, 
+                    type: 'levelup', 
+                    title: `Level Up ke ${result.newLevel}! 🎉`, 
+                    message: `Hebat! +${result.xpAdded} XP dan +${result.healthAdded} ❤️ didapatkan!` 
+                });
                 setTimeout(() => setShowConfetti(false), 5000);
             } else {
-                setModalInfo({ show: true, type: 'success', title: 'Misi Selesai! ✅', message: `+${result.xpAdded} XP didapatkan` });
+                setModalInfo({ 
+                    show: true, 
+                    type: 'success', 
+                    title: 'Misi Selesai! ✅', 
+                    message: `+${result.xpAdded} XP dan +${result.healthAdded} ❤️ didapatkan` 
+                });
             }
         } else {
             // Tampilkan error jika syarat belum terpenuhi
@@ -106,32 +119,81 @@ export default function MissionsPage() {
               )}
 
               <div className="flex justify-between items-start mb-4">
-                <div className="bg-blue-50 p-3 rounded-xl text-blue-600"><Target size={24} /></div>
-                <span className="bg-blue-100 text-blue-700 text-xs font-bold px-3 py-1 rounded-full">+{mission.xp_reward} XP</span>
+                <div className="flex items-center gap-3">
+                  <div className="text-3xl">{mission.icon || '🎯'}</div>
+                  <div>
+                    <span className={`text-xs font-bold px-2 py-1 rounded-md ${
+                      mission.difficulty === 'easy' ? 'bg-green-100 text-green-700' :
+                      mission.difficulty === 'medium' ? 'bg-yellow-100 text-yellow-700' :
+                      mission.difficulty === 'hard' ? 'bg-orange-100 text-orange-700' :
+                      'bg-red-100 text-red-700'
+                    }`}>
+                      {mission.difficulty === 'easy' ? '⭐ Mudah' :
+                       mission.difficulty === 'medium' ? '⭐⭐ Sedang' :
+                       mission.difficulty === 'hard' ? '⭐⭐⭐ Sulit' :
+                       '⭐⭐⭐⭐ Expert'}
+                    </span>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <span className="bg-blue-100 text-blue-700 text-xs font-bold px-3 py-1 rounded-full">+{mission.xp_reward} XP</span>
+                  <div className="text-xs text-green-600 font-semibold mt-1">+{mission.health_reward} ❤️</div>
+                </div>
               </div>
               
               <h3 className="text-xl font-bold text-gray-800 mb-2">{mission.title}</h3>
               <p className="text-gray-500 text-sm mb-4">{mission.description}</p>
               
-              {/* Syarat Progress (Misal: 0/1 Terlaksana) */}
-              {mission.required_activity_id && !mission.is_claimed && !mission.is_locked && (
-                 <div className="mb-4 text-xs font-semibold px-3 py-1.5 bg-orange-50 text-orange-700 rounded-lg inline-block border border-orange-100">
-                    Syarat: {mission.progress_text}
-                 </div>
+              {/* Progress Bar dan Status */}
+              {!mission.is_claimed && !mission.is_locked && (
+                <div className="mb-4">
+                  {/* Progress Bar */}
+                  <div className="mb-2">
+                    <div className="flex justify-between text-xs mb-1">
+                      <span className="text-gray-600 font-medium">Progress</span>
+                      <span className={`font-bold ${mission.is_completed ? 'text-green-600' : 'text-orange-600'}`}>
+                        {mission.progress_text || `${mission.progress} / ${mission.target_value}`}
+                      </span>
+                    </div>
+                    <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
+                      <div 
+                        className={`h-full transition-all duration-500 ${mission.is_completed ? 'bg-green-500' : 'bg-orange-400'}`}
+                        style={{ width: `${Math.min(100, (mission.progress / mission.target_value) * 100)}%` }}
+                      ></div>
+                    </div>
+                  </div>
+                  
+                  {/* Status Badge */}
+                  {!mission.is_completed && (
+                    <div className="text-xs font-semibold px-3 py-1.5 bg-orange-50 text-orange-700 rounded-lg inline-block border border-orange-100">
+                      ⚠️ Syarat belum terpenuhi
+                    </div>
+                  )}
+                  {mission.is_completed && (
+                    <div className="text-xs font-semibold px-3 py-1.5 bg-green-50 text-green-700 rounded-lg inline-block border border-green-100">
+                      ✅ Siap diklaim!
+                    </div>
+                  )}
+                </div>
               )}
 
               <button 
-                onClick={() => handleClaim(mission.id)} 
-                disabled={!mission.is_completable || mission.is_claimed} 
+                onClick={() => mission.is_completable && handleClaim(mission.id)} 
+                disabled={!mission.is_completable || mission.is_claimed || mission.is_locked} 
                 className={`w-full py-3 rounded-xl font-bold flex items-center justify-center gap-2 transition 
                     ${mission.is_claimed 
                         ? 'bg-green-100 text-green-700 cursor-default' 
-                        : !mission.is_completable 
-                            ? 'bg-gray-200 text-gray-500 cursor-not-allowed' // Tombol mati jika syarat belum penuhi
-                            : 'bg-emerald-600 hover:bg-emerald-700 text-white' // Tombol aktif
+                        : mission.is_completable 
+                            ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg hover:shadow-xl transform hover:scale-105' 
+                            : 'bg-gray-200 text-gray-500 cursor-not-allowed'
                     }`}
               >
-                {mission.is_claimed ? <><CheckCircle size={20} /> Selesai</> : 'Klaim Misi'}
+                {mission.is_claimed 
+                  ? <><CheckCircle size={20} /> Sudah Diklaim</> 
+                  : mission.is_completable 
+                    ? <><Zap size={20} /> Klaim Sekarang!</>
+                    : 'Syarat Belum Terpenuhi'
+                }
               </button>
             </div>
           ))}
