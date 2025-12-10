@@ -43,6 +43,8 @@ Follow these steps to set up the project locally.
 
 ### Installation
 
+The project consists of two main parts: the `client` (Frontend) and the `server` (Backend). Each has its own `package.json` file listing the required dependencies. You need to install these dependencies for both parts.
+
 1. **Clone the repository**
    ```bash
    git clone <repository-url>
@@ -50,12 +52,14 @@ Follow these steps to set up the project locally.
    ```
 
 2. **Install Server Dependencies**
+   Navigate to the `server` directory. The `npm install` command will read the `package.json` file and install all necessary backend packages (Express, MySQL2, etc.).
    ```bash
    cd server
    npm install
    ```
 
 3. **Install Client Dependencies**
+   Navigate to the `client` directory. Similarly, `npm install` will read the `client/package.json` file and install all frontend packages (Next.js, React, Tailwind, etc.).
    ```bash
    cd ../client
    npm install
