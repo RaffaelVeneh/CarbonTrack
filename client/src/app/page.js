@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import Image from 'next/image'; 
 import { Leaf, ArrowRight, Activity, Award, Zap } from 'lucide-react';
 
 export default function LandingPage() {
@@ -7,19 +8,32 @@ export default function LandingPage() {
       
       {/* --- NAVBAR --- */}
       <nav className="flex justify-between items-center px-8 py-6 max-w-7xl mx-auto">
-        <div className="flex items-center gap-2">
-          <div className="bg-emerald-100 p-2 rounded-lg text-emerald-600">
-            <Leaf size={24} />
-          </div>
-          <span className="text-xl font-extrabold tracking-tight text-gray-900">
-            Carbon<span className="text-emerald-600">Track</span>
-          </span>
+        
+        {/* LOGO */}
+        <div className="flex items-center gap-3">
+           <Image 
+              src="/logo-icon.jpg"   
+              alt="CarbonTrack Icon"
+              width={50}        
+              height={50}
+              className="object-contain"
+           />
+           <div className="flex items-baseline leading-none select-none">
+                <span className="text-2xl font-extrabold text-gray-700 tracking-tight">
+                    Carbon
+                </span>
+                <span className="text-2xl font-medium text-emerald-500 ml-0.5">
+                    Tracker
+                </span>
+           </div>
         </div>
+
         <div className="flex gap-4">
           <Link href="/login" className="px-6 py-2 text-gray-600 font-semibold hover:text-emerald-600 transition">
             Masuk
           </Link>
-          <Link href="/register" className="px-6 py-2 bg-emerald-600 text-white rounded-full font-semibold hover:bg-emerald-700 transition shadow-lg shadow-emerald-200">
+          {/* UBAH DI SINI: Tambahkan ?mode=register */}
+          <Link href="/login?mode=register" className="px-6 py-2 bg-emerald-600 text-white rounded-full font-semibold hover:bg-emerald-700 transition shadow-lg shadow-emerald-200">
             Daftar Sekarang
           </Link>
         </div>
@@ -41,9 +55,12 @@ export default function LandingPage() {
             Pantau emisi harianmu, selesaikan misi lingkungan, dan rawat pulau virtualmu agar tetap subur. Langkah kecilmu berdampak besar!
           </p>
           <div className="flex flex-col sm:flex-row gap-4 pt-4">
-            <Link href="/register" className="px-8 py-4 bg-gray-900 text-white rounded-xl font-bold text-lg hover:bg-gray-800 transition flex items-center justify-center gap-2">
+            
+            {/* PERBAIKAN: Ubah href="/register" jadi "/login" */}
+            <Link href="/login?mode=register" className="px-8 py-4 bg-gray-900 text-white rounded-xl font-bold text-lg hover:bg-gray-800 transition flex items-center justify-center gap-2">
               Mulai Petualangan <ArrowRight size={20}/>
             </Link>
+            
             <Link href="/login" className="px-8 py-4 bg-gray-100 text-gray-700 rounded-xl font-bold text-lg hover:bg-gray-200 transition text-center">
               Sudah Punya Akun?
             </Link>
@@ -55,7 +72,6 @@ export default function LandingPage() {
           <div className="absolute top-0 right-0 w-96 h-96 bg-emerald-200 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-blob"></div>
           <div className="absolute top-0 -left-4 w-96 h-96 bg-teal-200 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-blob animation-delay-2000"></div>
           <div className="relative bg-white/50 backdrop-blur-xl border border-white/60 p-8 rounded-3xl shadow-2xl">
-             {/* Mockup Tampilan Dashboard Mini */}
              <div className="space-y-6">
                 <div className="flex items-center gap-4">
                     <div className="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center text-3xl">🌳</div>
@@ -86,7 +102,7 @@ export default function LandingPage() {
         <div className="max-w-7xl mx-auto px-8">
           <div className="text-center mb-16">
             <h2 className="text-3xl font-bold text-gray-900 mb-4">Fitur Unggulan</h2>
-            <p className="text-gray-500">Kenapa CarbonTrack beda dari yang lain?</p>
+            <p className="text-gray-500">Kenapa Carbon Tracker beda dari yang lain?</p>
           </div>
 
           <div className="grid md:grid-cols-3 gap-8">
@@ -111,7 +127,7 @@ export default function LandingPage() {
 
       {/* --- FOOTER --- */}
       <footer className="bg-white border-t border-gray-100 py-12 text-center">
-        <p className="text-gray-400 font-medium">© 2025 CarbonTrack Project. Dibuat oleh Zidan.</p>
+        <p className="text-gray-400 font-medium">© 2025 Carbon Tracker Project. Dibuat oleh Tim "nama timnya apa ya".</p>
       </footer>
     </div>
   );

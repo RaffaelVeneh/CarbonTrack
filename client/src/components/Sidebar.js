@@ -1,69 +1,130 @@
 'use client';
 
+import { useState } from 'react';
 import Link from 'next/link';
+import Image from 'next/image'; 
 import { usePathname, useRouter } from 'next/navigation';
-import { LayoutDashboard, Target, Award, Users, Bot, LogOut, Settings } from 'lucide-react'; 
-// Note: Icon FileText dihapus karena menu sertifikat tidak dipakai
+import { LayoutDashboard, Target, Award, Users, Bot, LogOut, Settings, AlertTriangle, History } from 'lucide-react'; 
 
 export default function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
+  
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
 
-  const handleLogout = () => {
+  const handleLogoutClick = () => {
+    setShowLogoutModal(true);
+  };
+
+  const confirmLogout = () => {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
-    router.push('/login');
+    router.push('/'); 
   };
 
   const menuItems = [
     { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
     { name: 'Misi & Poin', href: '/missions', icon: Target },
     { name: 'Leaderboard', href: '/leaderboard', icon: Award },
+    { name: 'Riwayat', href: '/history', icon: History },
     { name: 'Profil', href: '/profile', icon: Users },
     { name: 'Eco AI', href: '/assistant', icon: Bot },
     { name: 'Pengaturan', href: '/settings', icon: Settings }
-    // Menu Sertifikat sudah dihapus dari sini
   ];
 
   return (
-    <div className="w-64 h-screen bg-white border-r border-gray-200 flex flex-col fixed left-0 top-0">
-      <div className="p-6 border-b border-gray-100">
-        <h1 className="text-2xl font-bold text-emerald-600 flex items-center gap-2">
-          🌿 CarbonTrack
-        </h1>
+    <>
+      <div className="w-64 h-screen bg-white border-r border-gray-200 flex flex-col fixed left-0 top-0 z-40">
+        
+        {/* --- BAGIAN LOGO & TEKS KUSTOM --- */}
+        <div className="p-6 border-b border-gray-100 flex items-center justify-start gap-3">
+          <Link href="/dashboard" className="flex items-center gap-2">
+            
+            {/* 1. Ikon Logo (Pastikan ini gambar yg sudah dicrop/icon saja) */}
+            <Image 
+              src="/logo-icon.jpg"   // Ganti nama file jika kamu sudah crop jadi 'icon.jpg'
+              alt="CarbonTrack Icon"
+              width={45}           
+              height={45}           
+              className="object-contain" 
+              priority
+            />
+
+            {/* 2. Teks yang dibuat manual (Mirip desain asli) */}
+            <div className="flex flex-col justify-center leading-none">
+                <div className="flex items-baseline">
+                    <span className="text-2xl font-extrabold text-gray-700 tracking-tight">
+                        Carbon
+                    </span>
+                    <span className="text-2xl font-medium text-emerald-500 ml-0.5">
+                        Tracker
+                    </span>
+                </div>
+            </div>
+
+          </Link>
+        </div>
+        {/* ----------------------------------- */}
+
+        {/* MENU NAVIGASI */}
+        <nav className="flex-1 p-4 space-y-2">
+          {menuItems.map((item) => {
+            const Icon = item.icon;
+            const isActive = pathname === item.href;
+            
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={`flex items-center gap-3 px-4 py-3 rounded-lg font-medium transition-all ${
+                  isActive
+                    ? 'bg-emerald-50 text-emerald-600 border border-emerald-100'
+                    : 'text-gray-600 hover:bg-gray-50 hover:text-emerald-600'
+                }`}
+              >
+                <Icon size={20} />
+                {item.name}
+              </Link>
+            );
+          })}
+        </nav>
+
+        {/* TOMBOL KELUAR */}
+        <div className="p-4 border-t border-gray-100">
+          <button
+            onClick={handleLogoutClick}
+            className="flex items-center gap-3 px-4 py-3 w-full text-left text-red-500 hover:bg-red-50 rounded-lg font-medium transition"
+          >
+            <LogOut size={20} />
+            Keluar
+          </button>
+        </div>
       </div>
 
-      <nav className="flex-1 p-4 space-y-2">
-        {menuItems.map((item) => {
-          const Icon = item.icon;
-          const isActive = pathname === item.href;
-          
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={`flex items-center gap-3 px-4 py-3 rounded-lg font-medium transition-all ${
-                isActive
-                  ? 'bg-emerald-50 text-emerald-600 border border-emerald-100'
-                  : 'text-gray-600 hover:bg-gray-50 hover:text-emerald-600'
-              }`}
-            >
-              <Icon size={20} />
-              {item.name}
-            </Link>
-          );
-        })}
-      </nav>
-
-      <div className="p-4 border-t border-gray-100">
-        <button
-          onClick={handleLogout}
-          className="flex items-center gap-3 px-4 py-3 w-full text-left text-red-500 hover:bg-red-50 rounded-lg font-medium transition"
-        >
-          <LogOut size={20} />
-          Keluar
-        </button>
-      </div>
-    </div>
+      {/* --- POPUP MODAL KONFIRMASI --- */}
+      {showLogoutModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 transform transition-all scale-100">
+            <div className="flex flex-col items-center text-center">
+              <div className="bg-red-100 p-3 rounded-full mb-4">
+                <AlertTriangle className="text-red-600" size={32} />
+              </div>
+              <h3 className="text-xl font-bold text-gray-800 mb-2">Yakin ingin keluar?</h3>
+              <p className="text-gray-500 mb-6 text-sm">
+                Sesi kamu akan berakhir dan kamu harus login lagi untuk mengakses Dashboard.
+              </p>
+              <div className="flex gap-3 w-full">
+                <button onClick={() => setShowLogoutModal(false)} className="flex-1 px-4 py-2.5 bg-gray-100 text-gray-700 rounded-xl font-semibold hover:bg-gray-200 transition">
+                  Batal
+                </button>
+                <button onClick={confirmLogout} className="flex-1 px-4 py-2.5 bg-red-600 text-white rounded-xl font-semibold hover:bg-red-700 shadow-lg shadow-red-200 transition">
+                  Ya, Keluar
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 }
