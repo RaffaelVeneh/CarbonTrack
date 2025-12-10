@@ -1,52 +1,135 @@
+const Groq = require('groq-sdk');
+
+// Initialize Groq client
+const groq = new Groq({
+    apiKey: process.env.GROQ_API_KEY || '' // Akan diset di .env
+});
+
+// System prompt untuk EcoBot personality
+const SYSTEM_PROMPT = `Kamu adalah EcoBot, asisten virtual ramah lingkungan yang membantu pengguna mengurangi jejak karbon mereka di Indonesia. 
+
+PERSONALITY:
+- Ramah, antusias, dan supportif
+- Gunakan emoji yang relevan (🌱💡🚗♻️💧🌍)
+- Berikan tips praktis dan actionable
+- Fokus pada solusi, bukan menakut-nakuti
+- Gunakan bahasa Indonesia yang casual tapi informatif
+
+EXPERTISE:
+1. Hemat energi listrik (AC, lampu, elektronik)
+2. Transportasi ramah lingkungan (sepeda, carpool, public transport)
+3. Diet rendah karbon (kurangi daging, pilih lokal)
+4. Kurangi sampah plastik (reusable items, kompos)
+5. Hemat air
+6. Fakta climate change & lingkungan di Indonesia
+7. Fitur aplikasi CarbonTrack (level, XP, missions)
+
+RESPONSE GUIDELINES:
+- Jawab singkat & padat (2-4 paragraf, max 500 kata)
+- Gunakan bullet points untuk tips
+- Sertakan angka/data untuk kredibilitas
+- Berikan action items yang bisa langsung dipraktikkan
+- Tutup dengan motivasi positif
+- Fokus pada konteks Indonesia (Jakarta, Surabaya, dll)
+
+Jangan bahas topik di luar lingkungan/sustainability. Jika ditanya hal lain, arahkan kembali ke topik eco-living dengan ramah.`;
+
 exports.askAssistant = async (req, res) => {
     try {
         const { question } = req.body;
-        const lowerQ = question ? question.toLowerCase() : "";
-
-        let answer = "Maaf, EcoBot belum mengerti. Coba tanya tentang 'listrik', 'transport', 'makan', atau 'sampah'.";
-
-        // --- LOGIKA CERDAS (KEYWORD MATCHING) ---
-
-        // 1. SAPAAN (Lebih banyak variasi)
-        const sapaan = ['halo', 'hai', 'hi', 'hello', 'pagi', 'siang', 'sore', 'malam'];
-        if (sapaan.some(kata => lowerQ.includes(kata))) {
-            answer = "Halo sobat bumi! 🌱 Ada yang bisa EcoBot bantu untuk kurangi jejak karbonmu hari ini?";
-        } 
         
-        // 2. LISTRIK & ENERGI
-        else if (lowerQ.includes('listrik') || lowerQ.includes('lampu') || lowerQ.includes('ac') || lowerQ.includes('energi')) {
-            answer = "💡 **Tips Hemat Energi:**\n1. Atur AC di suhu 24-25°C (hemat 10% listrik).\n2. Ganti lampu pijar dengan LED.\n3. Cabut charger laptop/HP jika sudah penuh (vampire power).";
-        } 
-        
-        // 3. TRANSPORTASI
-        else if (lowerQ.includes('motor') || lowerQ.includes('mobil') || lowerQ.includes('bensin') || lowerQ.includes('macet') || lowerQ.includes('jalan')) {
-            answer = "🚗 **Tips Transportasi Hijau:**\n1. Cek tekanan ban rutin (ban kempes boros BBM 5%).\n2. Hindari 'Stop & Go' mendadak.\n3. Kalau dekat, jalan kaki atau naik sepeda saja, sehat dan nol emisi!";
-        } 
-        
-        // 4. SAMPAH & PLASTIK
-        else if (lowerQ.includes('sampah') || lowerQ.includes('plastik') || lowerQ.includes('botol') || lowerQ.includes('sedotan')) {
-            answer = "🥤 **Lawan Plastik:**\nIndonesia penyumbang sampah plastik ke laut terbesar ke-2. Yuk bawa tumbler dan tas belanja sendiri! Kamu bisa hemat Rp 500rb/tahun lho.";
-        } 
-        
-        // 5. MAKANAN & DAGING
-        else if (lowerQ.includes('makan') || lowerQ.includes('daging') || lowerQ.includes('sayur') || lowerQ.includes('sapi')) {
-            answer = "🍔 **Diet Karbon:**\nProduksi 1kg daging sapi menghasilkan 27kg CO2! Coba tantangan 'Meatless Monday' (Senin Tanpa Daging), ganti dengan tempe/tahu/telur.";
-        }
-        
-        // 6. AIR
-        else if (lowerQ.includes('air') || lowerQ.includes('mandi') || lowerQ.includes('cuci')) {
-            answer = "💧 **Hemat Air:**\nMatikan kran saat gosok gigi! Kebiasaan ini bisa menghemat hingga 6 liter air per menit.";
+        if (!question || !question.trim()) {
+            return res.json({ answer: "Halo! Ada yang bisa EcoBot bantu? 🌱" });
         }
 
-        // 7. LEVEL & XP (Fitur Aplikasi)
-        else if (lowerQ.includes('level') || lowerQ.includes('xp') || lowerQ.includes('poin')) {
-            answer = "📈 **Tentang Level:**\nSetiap kamu mencatat aktivitas hemat karbon atau klaim misi, kamu dapat XP. Naikkan levelmu dari 'Newbie' sampai jadi 'Earth Protector'!";
-        }
+        console.log(`[AI] User asked: "${question.substring(0, 100)}..."`);
 
-        res.json({ answer });
+        // === GROQ AI INTEGRATION ===
+        try {
+            const chatCompletion = await groq.chat.completions.create({
+                messages: [
+                    {
+                        role: 'system',
+                        content: SYSTEM_PROMPT
+                    },
+                    {
+                        role: 'user',
+                        content: question
+                    }
+                ],
+                model: 'llama-3.3-70b-versatile', // Model tercepat & terbaik Groq (gratis!)
+                temperature: 0.7,
+                max_tokens: 800,
+                top_p: 1,
+                stream: false
+            });
+
+            const answer = chatCompletion.choices[0]?.message?.content || 
+                "Maaf, EcoBot sedang berpikir terlalu dalam. Coba tanya lagi ya! 😅";
+            
+            console.log(`[AI] Response: ${answer.length} chars`);
+            return res.json({ answer });
+
+        } catch (groqError) {
+            console.error('[Groq API Error]:', groqError.message);
+            
+            // === FALLBACK: KEYWORD MATCHING ===
+            const lowerQ = question.toLowerCase().trim();
+            let answer = "Maaf, EcoBot sedang maintenance. Coba tanya tentang hemat energi, transportasi, atau sampah plastik! 😊";
+
+            // Sapaan
+            if (/^(halo|hai|hi|hello|hey|pagi|siang|sore|malam)$/i.test(lowerQ)) {
+                answer = "Halo sobat bumi! 🌱 Ada yang bisa EcoBot bantu untuk kurangi jejak karbonmu hari ini?";
+            }
+            else if (/terima kasih|thanks|makasih/i.test(lowerQ)) {
+                answer = "Sama-sama! 💚 Senang bisa membantu. Yuk terus jaga bumi kita bersama!";
+            }
+            
+            // Listrik & Energi
+            else if (/listrik|lampu|ac|kipas|kulkas|energi|hemat listrik/i.test(lowerQ)) {
+                answer = "💡 **Tips Hemat Energi:**\n\n1. **AC di 24-25°C** - Setiap derajat lebih dingin = 3-5% listrik lebih boros\n2. **Ganti lampu LED** - Hemat 75% energi vs lampu pijar\n3. **Cabut charger** - Charger nganggur tetap makan listrik\n4. **Bersihkan filter AC** - AC kotor boros 15%\n\n⚡ 1 kWh listrik = 0.85 kg CO2";
+            }
+            
+            // Transportasi
+            else if (/motor|mobil|bensin|transport|kendaraan|macet|sepeda/i.test(lowerQ)) {
+                answer = "🚗 **Tips Transportasi Hijau:**\n\n1. **Cek tekanan ban** - Ban kurang angin boros BBM 3-5%\n2. **Hindari 'Stop & Go'** - Akselerasi halus hemat 20%\n3. **Sepeda/Jalan kaki** (<3km) = 0 emisi!\n4. **Carpool/Bus** = Bagi emisi dengan orang lain\n\n⛽ 1 liter bensin = 2.3 kg CO2";
+            }
+            
+            // Makanan
+            else if (/makan|daging|sapi|ayam|sayur|vegetarian|diet/i.test(lowerQ)) {
+                answer = "🍔 **Diet Rendah Karbon:**\n\n**Emisi per 1kg:**\n• Daging sapi: 27 kg CO2\n• Ayam: 6.9 kg CO2\n• Telur: 4.8 kg CO2\n• Tempe/Tahu: 2 kg CO2\n\n💡 Coba 'Meatless Monday' - hemat 500 kg CO2/tahun!";
+            }
+            
+            // Sampah & Plastik
+            else if (/sampah|plastik|botol|sedotan|kantong|limbah/i.test(lowerQ)) {
+                answer = "♻️ **Lawan Sampah Plastik:**\n\n1. **Bawa tumbler** - 1 botol plastik = 450 tahun terurai\n2. **Tas belanja sendiri** - Hemat 500 kantong/tahun\n3. **Tolak sedotan** - Indonesia pakai 93 juta sedotan/hari\n\n🌊 Indonesia = penyumbang plastik laut #2 dunia";
+            }
+            
+            // Air
+            else if (/air|mandi|cuci|kran/i.test(lowerQ)) {
+                answer = "💧 **Hemat Air:**\n\n1. Matikan kran saat gosok gigi (hemat 6 liter/menit)\n2. Mandi 5-10 menit (tiap menit = 10 liter)\n3. Perbaiki kran bocor (1 tetes/detik = 20 liter/hari)\n\n🚿 Rata-rata orang Indonesia pakai 120 liter/hari";
+            }
+            
+            // Level & XP
+            else if (/level|xp|poin|naik|mission|misi/i.test(lowerQ)) {
+                answer = "📈 **Sistem Level & XP:**\n\n**Cara Dapat XP:**\n• Catat aktivitas hijau (+5-20 XP)\n• Selesaikan misi (+30-600 XP)\n\n**Level Up:**\n• Level 1-10: 100 XP per level\n• Unlock misi baru setiap naik level\n\n🎯 Catat aktivitas rutin untuk naik level cepat!";
+            }
+            
+            // Fakta
+            else if (/fakta|data|global warming|iklim|climate/i.test(lowerQ)) {
+                answer = "🌍 **Fakta Climate Change:**\n\n• Suhu global naik 1.1°C sejak 1880\n• 2023 = tahun terpanas dalam sejarah\n• Jakarta turun 25 cm dalam 10 tahun\n• Banjir rob makin sering\n\n⏰ Kita punya <10 tahun untuk aksi drastis!";
+            }
+            
+            // Cara Mulai
+            else if (/mulai|bingung|gimana|bagaimana|cara/i.test(lowerQ)) {
+                answer = "🌱 **Mulai dari Mana?**\n\n1. ✅ Matikan lampu ruangan kosong\n2. ✅ Bawa botol minum & tas belanja\n3. ✅ Jalan kaki untuk jarak dekat\n4. ✅ Kurangi makan daging 1-2x/minggu\n5. ✅ Cabut charger setelah penuh\n\n📱 Catat aktivitas di app untuk track progress!";
+            }
+
+            return res.json({ answer });
+        }
 
     } catch (error) {
-        console.error(error);
-        res.status(500).json({ answer: 'Maaf, EcoBot sedang perbaikan sistem.' });
+        console.error('[AI Error]:', error);
+        res.status(500).json({ answer: 'Maaf, EcoBot sedang perbaikan sistem. Coba lagi ya! 🔧' });
     }
 };

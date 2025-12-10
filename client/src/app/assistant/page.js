@@ -10,10 +10,13 @@ export default function AssistantPage() {
     { role: 'bot', text: 'Halo! Saya EcoBot 🌱. Tanyakan tips hemat listrik, transportasi, atau cara mengurangi sampah plastik!' }
   ]);
   const [loading, setLoading] = useState(false);
-  const API_URL = process.env.NEXT_PUBLIC_API_URL;
+  
   const handleSend = async (e) => {
     e.preventDefault();
     if (!input.trim()) return;
+
+
+    const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
     // 1. Tambahkan pesan user ke chat
     const userMessage = { role: 'user', text: input };
@@ -22,8 +25,8 @@ export default function AssistantPage() {
     setLoading(true);
 
     try {
-      // 2. Kirim ke Backend AI
-      const res = await fetch(`${API_URL}/api/ai/ask`, {
+      // 2. Kirim ke Backend AI (FIX: API_URL sudah include /api)
+      const res = await fetch(`${API_URL}/ai/ask`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ question: userMessage.text })
@@ -41,64 +44,75 @@ export default function AssistantPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex">
+    <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-white to-teal-50 flex">
       <Sidebar />
-      <main className="flex-1 ml-64 flex flex-col h-screen">
+      <main className="flex-1 p-0 ml-64 flex flex-col h-screen">
         
-        {/* Header Chat */}
-        <div className="bg-white p-6 shadow-sm border-b border-gray-200 flex items-center gap-3">
-          <div className="p-2 bg-emerald-100 rounded-full text-emerald-600">
+        {/* Header Chat - Lebih Compact */}
+        <div className="bg-white px-6 py-4 shadow-sm border-b border-gray-100 flex items-center gap-3">
+          <div className="p-2 bg-gradient-to-br from-emerald-400 to-teal-500 rounded-xl text-white shadow-md">
             <Bot size={24} />
           </div>
           <div>
-            <h1 className="text-xl font-bold text-gray-800">AI Eco Assistant</h1>
-            <p className="text-xs text-green-500 font-medium flex items-center gap-1">
-              <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span> Online
+            <h1 className="text-lg font-bold text-gray-800">EcoBot Assistant</h1>
+            <p className="text-xs text-green-600 font-medium flex items-center gap-1.5">
+              <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></span> 
+              Siap membantu
             </p>
           </div>
         </div>
 
-        {/* Area Chat Bubble */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-gray-50">
+        {/* Area Chat Bubble - Reduced Padding */}
+        <div className="flex-1 overflow-y-auto px-4 py-2 space-y-3">
           {messages.map((msg, idx) => (
             <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-              <div className={`flex items-start gap-3 max-w-lg ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}>
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${msg.role === 'user' ? 'bg-gray-200 text-gray-600' : 'bg-emerald-600 text-white'}`}>
-                  {msg.role === 'user' ? <User size={16} /> : <Bot size={16} />}
-                </div>
-                <div className={`p-4 rounded-2xl text-sm leading-relaxed shadow-sm ${
+              <div className={`flex items-start gap-2.5 max-w-2xl ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}>
+                
+                {/* Avatar */}
+                <div className={`w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 shadow-sm ${
                   msg.role === 'user' 
-                    ? 'bg-white text-gray-800 rounded-tr-none' 
-                    : 'bg-emerald-600 text-white rounded-tl-none'
+                    ? 'bg-gradient-to-br from-gray-100 to-gray-200 text-gray-700' 
+                    : 'bg-gradient-to-br from-emerald-500 to-teal-600 text-white'
+                }`}>
+                  {msg.role === 'user' ? <User size={18} /> : <Bot size={18} />}
+                </div>
+
+                {/* Message Bubble */}
+                <div className={`px-4 py-3 rounded-2xl text-base leading-relaxed shadow-md whitespace-pre-wrap ${
+                  msg.role === 'user' 
+                    ? 'bg-white text-gray-800 rounded-tr-sm border border-gray-100' 
+                    : 'bg-gradient-to-br from-emerald-600 to-teal-600 text-white rounded-tl-sm'
                 }`}>
                   {msg.text}
                 </div>
               </div>
             </div>
           ))}
+          
+          {/* Loading Indicator */}
           {loading && (
             <div className="flex justify-start">
-              <div className="bg-emerald-50 text-emerald-600 px-4 py-2 rounded-full text-xs animate-pulse">
-                EcoBot sedang mengetik...
+              <div className="bg-emerald-100 text-emerald-700 px-4 py-2 rounded-full text-xs font-medium animate-pulse shadow-sm">
+                💬 EcoBot sedang mengetik...
               </div>
             </div>
           )}
         </div>
 
-        {/* Input Area */}
-        <div className="p-4 bg-white border-t border-gray-200">
-          <form onSubmit={handleSend} className="flex gap-2 max-w-4xl mx-auto">
+        {/* Input Area - Compact & Centered */}
+        <div className="p-8 bg-white/80 backdrop-blur-sm border-t border-gray-100">
+          <form onSubmit={handleSend} className="flex gap-2 max-w-3xl mx-auto">
             <input
               type="text"
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              placeholder="Tanya tips hemat energi..."
-              className="flex-1 px-5 py-3 bg-gray-100 border-0 rounded-full focus:ring-2 focus:ring-emerald-500 outline-none transition"
+              placeholder="💬 Tanya tips hemat energi, transportasi, atau diet ramah lingkungan..."
+              className="flex-1 px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-full focus:ring-2 focus:ring-emerald-400 focus:border-transparent outline-none transition text-base"
             />
             <button 
               type="submit" 
               disabled={loading}
-              className="bg-emerald-600 hover:bg-emerald-700 text-white p-3 rounded-full shadow-lg transition disabled:opacity-50"
+              className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white p-2.5 rounded-full shadow-lg transition disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <Send size={20} />
             </button>

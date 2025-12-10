@@ -211,8 +211,8 @@ exports.getMissions = async (req, res) => {
                 is_completable: isCompleted && !isClaimed,
                 can_claim: isCompleted && !isClaimed
             };
-            } catch (error) {
-                console.error(`Error processing mission ${mission.id}:`, error);
+        } catch (error) {
+            console.error(`Error processing mission ${mission.id}:`, error);
                 // Return mission dengan progress 0 jika ada error
                 return {
                     id: mission.id,
@@ -236,7 +236,7 @@ exports.getMissions = async (req, res) => {
                     is_completable: false,
                     can_claim: false
                 };
-            }
+        }
         }));
 
         res.json({
