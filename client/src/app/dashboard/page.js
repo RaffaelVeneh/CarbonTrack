@@ -12,8 +12,8 @@ import healthyAnim from '@/assets/lottie/healthy.json';
 import normalAnim from '@/assets/lottie/normal.json';
 import deadAnim from '@/assets/lottie/dead.json';
 
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { Leaf, Zap, TrendingDown, Plus, Heart } from 'lucide-react';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
+import { Leaf, Zap, TrendingDown, Plus, Heart, ShieldCheck } from 'lucide-react';
 
 export default function Dashboard() {
   const router = useRouter();
@@ -21,7 +21,13 @@ export default function Dashboard() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   
   // State Data Dashboard
-  const [stats, setStats] = useState({ todayEmission: 0, totalEmission: 0, graphData: [] });
+  const [stats, setStats] = useState({ 
+    todayEmission: 0, 
+    todaySaved: 0,
+    totalEmission: 0, 
+    totalSaved: 0, 
+    graphData: [] 
+  });
 
   // State Animasi Pohon
   const [treeConfig, setTreeConfig] = useState({ 
@@ -36,25 +42,52 @@ export default function Dashboard() {
   // FUNGSI 1: Ambil Data Terbaru (Stats + Health User)
   const fetchAllData = useCallback(async (userId) => {
     try {
-      // A. Ambil Statistik Emisi
+      console.log('Fetching data from:', `${API_URL}/logs/summary/${userId}`);
+      
       const resStats = await fetch(`${API_URL}/logs/summary/${userId}`);
       const dataStats = await resStats.json();
-      if (resStats.ok) setStats(dataStats);
+      
+      console.log('Stats response:', dataStats);
+      console.log('Graph data:', dataStats.graphData);
+      
+      if (resStats.ok) {
+        // Normalize data format - handle both old (co2) and new (emission/saved) format
+        const normalizedStats = {
+          todayEmission: parseFloat(dataStats.todayEmission || 0),
+          todaySaved: parseFloat(dataStats.todaySaved || 0),
+          totalEmission: parseFloat(dataStats.totalEmission || 0),
+          totalSaved: parseFloat(dataStats.totalSaved || 0),
+          graphData: []
+        };
+        
+        if (dataStats.graphData && dataStats.graphData.length > 0) {
+          normalizedStats.graphData = dataStats.graphData.map(item => ({
+            name: item.name,
+            emission: item.emission !== undefined ? parseFloat(item.emission || 0) : parseFloat(item.co2 || 0),
+            saved: item.saved !== undefined ? parseFloat(item.saved || 0) : 0
+          }));
+        }
+        
+        console.log('Normalized stats:', normalizedStats);
+        setStats(normalizedStats);
+      } else {
+        console.error('Stats error:', dataStats);
+      }
 
-      // B. Ambil Data Profil User TERBARU (Supaya Health selalu update)
       const resUser = await fetch(`${API_URL}/users/profile/${userId}`);
       const dataUser = await resUser.json();
       
       if (resUser.ok) {
-        // Update state user dengan health terbaru dari database
         setUser(prev => ({ ...prev, island_health: dataUser.user.island_health }));
-        updateTreeUI(dataUser.user.island_health); // Panggil fungsi update tampilan pohon
+        updateTreeUI(dataUser.user.island_health);
+      } else {
+        console.error('User error:', dataUser);
       }
 
     } catch (error) {
       console.error("Gagal ambil data", error);
     }
-  }, []);
+  }, [API_URL]);
 
   // FUNGSI 2: Logika Ganti Gambar Pohon
   const updateTreeUI = (health) => {
@@ -92,7 +125,6 @@ export default function Dashboard() {
     } else {
       const parsedUser = JSON.parse(userData);
       setUser(parsedUser);
-      // Langsung panggil data terbaru dari server
       fetchAllData(parsedUser.id);
     }
   }, [router, fetchAllData]);
@@ -149,50 +181,89 @@ export default function Dashboard() {
         </div>
 
         {/* --- KARTU STATISTIK --- */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex items-center gap-4">
-            <div className="p-3 bg-emerald-100 text-emerald-600 rounded-xl"><Leaf size={24} /></div>
-            <div>
-              <p className="text-sm text-gray-500">Total Jejak Karbon</p>
-              <h3 className="text-2xl font-bold text-gray-800">{stats.totalEmission} kg</h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+          {/* Kartu 1: Total Emisi */}
+          <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+            <div className="flex items-center gap-3 mb-2">
+              <div className="p-2 bg-red-50 text-red-500 rounded-lg"><Leaf size={20} /></div>
+              <p className="text-sm text-gray-500 font-medium">Total Emisi</p>
             </div>
+            <h3 className="text-2xl font-bold text-gray-800">{stats.totalEmission} <span className="text-sm font-normal text-gray-400">kg</span></h3>
           </div>
-          <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex items-center gap-4">
-            <div className="p-3 bg-blue-100 text-blue-600 rounded-xl"><Zap size={24} /></div>
-            <div>
-              <p className="text-sm text-gray-500">Level Kamu</p>
-              <h3 className="text-2xl font-bold text-gray-800">Level {user.level || 1}</h3>
+
+          {/* Kartu 2: Emisi Hari Ini */}
+          <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+            <div className="flex items-center gap-3 mb-2">
+              <div className="p-2 bg-orange-50 text-orange-500 rounded-lg"><TrendingDown size={20} /></div>
+              <p className="text-sm text-gray-500 font-medium">Emisi Hari Ini</p>
             </div>
+            <h3 className="text-2xl font-bold text-gray-800">{stats.todayEmission} <span className="text-sm font-normal text-gray-400">kg</span></h3>
           </div>
-          <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex items-center gap-4">
-            <div className={`p-3 rounded-xl ${parseFloat(stats.todayEmission) > 5 ? 'bg-red-100 text-red-600' : 'bg-orange-100 text-orange-600'}`}>
-              <TrendingDown size={24} />
+
+          {/* Kartu 3: Total Hemat (BARU) */}
+          <div className="bg-white p-6 rounded-2xl shadow-sm border border-emerald-100">
+              <div className="flex items-center gap-3 mb-2">
+              <div className="p-2 bg-emerald-50 text-emerald-600 rounded-lg"><ShieldCheck size={20} /></div>
+              <p className="text-sm text-gray-500 font-medium">Cegah Polusi</p>
+              </div>
+              <h3 className="text-2xl font-bold text-emerald-600">{stats.totalSaved.toFixed(2)} <span className="text-sm font-normal text-emerald-400">kg</span></h3>
+          </div>
+
+          {/* Kartu 4: Level */}
+          <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+            <div className="flex items-center gap-3 mb-2">
+              <div className="p-2 bg-blue-50 text-blue-500 rounded-lg"><Zap size={20} /></div>
+              <p className="text-sm text-gray-500 font-medium">Level Kamu</p>
             </div>
-            <div>
-              <p className="text-sm text-gray-500">Emisi Hari Ini</p>
-              <h3 className="text-2xl font-bold text-gray-800">{stats.todayEmission} kg</h3>
-            </div>
+            <h3 className="text-2xl font-bold text-gray-800">Lvl {user.level || 1}</h3>
           </div>
         </div>
 
-        {/* --- GRAFIK --- */}
+        {/* --- GRAFIK MERAH VS HIJAU --- */}
         <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 mb-8">
-            <h2 className="text-lg font-bold text-gray-800 mb-6">Tren Emisi Minggu Ini</h2>
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-lg font-bold text-gray-800">Tren Jejak Karbon</h2>
+              <div className="flex gap-4 text-sm">
+                  <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full bg-red-500"></div> Emisi</div>
+                  <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full bg-emerald-500"></div> Hemat</div>
+              </div>
+            </div>
             
-            {/* Berikan tinggi eksplisit (h-80 = 320px) agar Recharts bisa hitung ukuran */}
-            <div className="h-80 w-full relative">
+            <div style={{ width: '100%', height: 320 }}>
                 {stats.graphData && stats.graphData.length > 0 ? (
-                <ResponsiveContainer width="100%" height="100%">
+                <ResponsiveContainer width="100%" height={320}>
                     <LineChart data={stats.graphData}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E5E7EB" />
-                    <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#9CA3AF', fontSize: 12 }} dy={10}/>
-                    <YAxis axisLine={false} tickLine={false} tick={{ fill: '#9CA3AF', fontSize: 12 }} />
-                    <Tooltip contentStyle={{ borderRadius: '10px' }} cursor={{ stroke: '#10B981' }} />
-                    <Line type="monotone" dataKey="co2" stroke="#10B981" strokeWidth={3} dot={{ r: 4, fill: '#10B981' }} />
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E5E7EB" />
+                      <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#9CA3AF', fontSize: 12 }} dy={10}/>
+                      <YAxis axisLine={false} tickLine={false} tick={{ fill: '#9CA3AF', fontSize: 12 }} />
+                      <Tooltip 
+                          contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} 
+                      />
+                      <Legend />
+                      {/* GARIS MERAH (EMISI) */}
+                      <Line 
+                          name="Emisi CO2"
+                          type="monotone" 
+                          dataKey="emission" 
+                          stroke="#EF4444" 
+                          strokeWidth={3} 
+                          dot={{ r: 4, fill: '#EF4444' }} 
+                          activeDot={{ r: 6 }}
+                      />
+                      {/* GARIS HIJAU (HEMAT) */}
+                      <Line 
+                          name="CO2 Dihemat"
+                          type="monotone" 
+                          dataKey="saved" 
+                          stroke="#10B981" 
+                          strokeWidth={3} 
+                          dot={{ r: 4, fill: '#10B981' }} 
+                          activeDot={{ r: 6 }}
+                      />
                     </LineChart>
                 </ResponsiveContainer>
                 ) : (
-                <div className="absolute inset-0 flex items-center justify-center text-gray-400">
+                <div className="flex items-center justify-center text-gray-400" style={{ height: 320 }}>
                     <p>Belum ada data grafik</p>
                 </div>
                 )}
@@ -205,7 +276,7 @@ export default function Dashboard() {
             isOpen={isModalOpen} 
             onClose={() => setIsModalOpen(false)}
             userId={user.id} 
-            onRefresh={() => fetchAllData(user.id)} // <--- PENTING: Refresh semua data setelah input
+            onRefresh={() => fetchAllData(user.id)} 
           />
         )}
       </main>
