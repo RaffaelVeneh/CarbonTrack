@@ -3,3 +3,32 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+::-webkit-scrollbar {
+  width: 12px;               /* Lebar untuk vertical scroll */
+  height: 12px;              /* Tinggi untuk horizontal scroll */
+}
+
+/* 2. Track (Latar Belakang Tempat Scroll Berjalan) */
+::-webkit-scrollbar-track {
+  background: #ecfdf5;       /* emerald-50: Hijau sangat pudar agar bersih */
+  border-radius: 10px;
+}
+
+/* 3. Thumb (Batang Scroll-nya) */
+::-webkit-scrollbar-thumb {
+  background-color: #10b981; /* emerald-500: Hijau cerah sesuai logo */
+  border-radius: 10px;       /* Membuat sudut bulat */
+  border: 3px solid #ecfdf5; /* Memberi jarak 'napas' antara batang dan track */
+}
+
+/* 4. Efek Saat Hover (Kursor di atas Scrollbar) */
+::-webkit-scrollbar-thumb:hover {
+  background-color: #059669; /* emerald-600: Hijau lebih gelap saat disentuh */
+}
+
+/* (Opsional) Firefox Support */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #10b981 #ecfdf5;
+}
