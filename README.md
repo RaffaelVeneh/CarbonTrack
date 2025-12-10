@@ -1,30 +1,39 @@
 # CarbonTrack 🌍
 
-CarbonTrack is a full-stack web application designed to help users track and reduce their daily carbon footprint. Built with Next.js for the frontend and Express.js for the backend, it provides a dashboard to visualize emission data, log activities, and complete eco-friendly missions.
+CarbonTrack is a comprehensive full-stack web application designed to empower users to track, visualize, and reduce their daily carbon footprint. By combining activity logging, gamified missions, and AI-powered insights, CarbonTrack makes sustainability engaging and actionable.
 
 ## ✨ Features
 
-- **User Authentication**: Secure login and registration system.
-- **Dashboard**: Real-time visualization of carbon emissions with charts and statistics.
-- **Activity Logging**: Track daily activities (transportation, energy usage, etc.) to calculate carbon footprint.
-- **Missions**: Gamified challenges to encourage eco-friendly habits.
-- **Responsive Design**: Modern UI built with Tailwind CSS.
+- **📊 Interactive Dashboard**: Real-time visualization of your carbon emissions with dynamic charts and statistics.
+- **🤖 AI Assistant**: Get personalized eco-friendly advice and insights powered by AI to help you make better choices.
+- **📝 Activity Logging**: Easily log daily activities (transportation, energy usage, diet) to calculate your impact.
+- **🎯 Gamified Missions**: Complete eco-friendly challenges to earn points and build sustainable habits.
+- **🏆 Leaderboard**: Compete with other users and see who is making the biggest positive impact.
+- **👤 User Profile & History**: Track your journey over time and manage your account settings.
+- **🎨 Engaging UI**: Modern, responsive design featuring interactive Lottie animations that reflect your progress (Healthy vs. Warning states).
+- **🔐 Secure Authentication**: Robust login and registration system using JWT and BCrypt.
 
 ## 🛠️ Tech Stack
 
-**Frontend:**
-- Next.js 15 (App Router)
-- Tailwind CSS
-- Recharts (Data Visualization)
-- Lucide React (Icons)
+### Frontend
+- **Framework**: Next.js 16 (App Router)
+- **Library**: React 19
+- **Styling**: Tailwind CSS
+- **Visualization**: Recharts
+- **Animations**: Lottie React, React Confetti
+- **Icons**: Lucide React
+- **Utilities**: html2canvas, jspdf
 
-**Backend:**
-- Node.js & Express.js
-- MySQL (Database)
-- JWT (Authentication)
-- BCrypt (Password Hashing)
+### Backend
+- **Runtime**: Node.js
+- **Framework**: Express.js 5
+- **Database**: MySQL (using `mysql2`)
+- **Authentication**: JSON Web Tokens (JWT)
+- **Security**: BCrypt (Password Hashing), CORS
 
 ## 🚀 Getting Started
+
+Follow these steps to set up the project locally.
 
 ### Prerequisites
 
@@ -67,6 +76,7 @@ CarbonTrack is a full-stack web application designed to help users track and red
    DB_PASSWORD=your_password
    DB_NAME=carbontrack
    JWT_SECRET=your_jwt_secret_key
+   # Add any AI API keys if required
    ```
 
 3. **Client Environment Variables**
@@ -98,14 +108,17 @@ CarbonTrack is a full-stack web application designed to help users track and red
 ```
 CarbonTrack/
 ├── client/                 # Next.js Frontend
-│   ├── src/app/            # App Router Pages (Dashboard, Login, etc.)
-│   ├── src/components/     # Reusable Components
-│   └── public/             # Static Assets
+│   ├── src/
+│   │   ├── app/            # App Router pages (Dashboard, Missions, AI Assistant, etc.)
+│   │   ├── assets/         # Static assets and Lottie animations
+│   │   └── components/     # Reusable UI components
+│   └── ...
 └── server/                 # Express Backend
-    ├── config/             # Database Configuration
-    ├── controllers/        # Request Handlers
-    ├── models/             # Database Models
-    └── routes/             # API Routes
+    ├── config/             # Database configuration
+    ├── controllers/        # Logic for AI, Auth, Logs, Missions, Users
+    ├── models/             # Database models
+    ├── routes/             # API Routes
+    └── index.js            # Entry point
 ```
 
 ## 🔗 API Endpoints
@@ -115,3 +128,13 @@ CarbonTrack/
 - `GET /api/logs/summary/:userId` - Get dashboard summary
 - `POST /api/logs` - Log a new activity
 - `GET /api/missions` - Get available missions
+- `POST /api/ai/ask` - Get AI advice
+- `GET /api/users/leaderboard` - Get leaderboard data
+
+## 🤝 Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.
+
+## 📄 License
+
+This project is licensed under the ISC License.
