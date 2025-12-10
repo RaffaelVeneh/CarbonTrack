@@ -36,13 +36,14 @@ exports.getMissions = async (req, res) => {
 
         // C. Untuk setiap misi, hitung progress berdasarkan tipe misi
         const missionsWithProgress = await Promise.all(missions.map(async (mission) => {
-            // Cek apakah sudah diklaim
-            const [claimCheck] = await db.execute(
-                'SELECT * FROM user_missions WHERE user_id = ? AND mission_id = ? AND status = "claimed"',
-                [userId, mission.id]
-            );
-            const isClaimed = claimCheck.length > 0;
-            const isLocked = mission.min_level > currentLevel;
+            try {
+                // Cek apakah sudah diklaim
+                const [claimCheck] = await db.execute(
+                    'SELECT * FROM user_missions WHERE user_id = ? AND mission_id = ? AND status = "claimed"',
+                    [userId, mission.id]
+                );
+                const isClaimed = claimCheck.length > 0;
+                const isLocked = mission.min_level > currentLevel;
 
             // Skip progress calculation jika sudah claimed atau locked
             if (isClaimed || isLocked) {
@@ -113,6 +114,15 @@ exports.getMissions = async (req, res) => {
 
                 case 'consecutive_days':
                     // Hitung berapa hari berturut-turut user hemat CO2
+                    const maxDays = parseInt(mission.duration_days);
+                    console.log(`Mission ${mission.id} - duration_days: ${mission.duration_days}, maxDays: ${maxDays}, type: ${typeof maxDays}`);
+                    
+                    if (isNaN(maxDays) || maxDays <= 0) {
+                        console.error(`Invalid maxDays for mission ${mission.id}: ${maxDays}`);
+                        progress = 0;
+                        break;
+                    }
+                    
                     const [daysResult] = await db.execute(`
                         SELECT DISTINCT log_date
                         FROM daily_logs
@@ -120,7 +130,7 @@ exports.getMissions = async (req, res) => {
                         AND carbon_saved > 0
                         ORDER BY log_date DESC
                         LIMIT ?
-                    `, [userId, mission.duration_days]);
+                    `, [userId, maxDays]);
                     
                     // Check consecutive
                     let consecutiveDays = 0;
@@ -201,6 +211,32 @@ exports.getMissions = async (req, res) => {
                 is_completable: isCompleted && !isClaimed,
                 can_claim: isCompleted && !isClaimed
             };
+            } catch (error) {
+                console.error(`Error processing mission ${mission.id}:`, error);
+                // Return mission dengan progress 0 jika ada error
+                return {
+                    id: mission.id,
+                    title: mission.title,
+                    description: mission.description,
+                    mission_type: mission.mission_type,
+                    target_value: parseFloat(mission.target_value),
+                    duration_days: mission.duration_days,
+                    required_activity_id: mission.required_activity_id,
+                    min_level: mission.min_level,
+                    max_level: mission.max_level,
+                    xp_reward: mission.xp_reward,
+                    health_reward: mission.health_reward,
+                    icon: mission.icon,
+                    difficulty: mission.difficulty,
+                    progress: 0,
+                    progress_text: '0 / ' + mission.target_value,
+                    is_completed: false,
+                    is_claimed: false,
+                    is_locked: false,
+                    is_completable: false,
+                    can_claim: false
+                };
+            }
         }));
 
         res.json({

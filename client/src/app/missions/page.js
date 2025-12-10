@@ -24,10 +24,22 @@ export default function MissionsPage() {
       const res = await fetch(`${API_URL}/missions/${userId}`);
       const data = await res.json();
       console.log('Missions data:', data);
-      console.log('First mission:', data.missions[0]);
-      setMissions(data.missions);
-      setLevelInfo(data.levelInfo); // Simpan info level
-    } catch (err) { console.error(err); }
+      
+      if (data.missions && data.missions.length > 0) {
+        console.log('First mission:', data.missions[0]);
+        setMissions(data.missions);
+      } else {
+        console.warn('No missions returned');
+        setMissions([]);
+      }
+      
+      if (data.levelInfo) {
+        setLevelInfo(data.levelInfo);
+      }
+    } catch (err) { 
+      console.error('Fetch missions error:', err);
+      setMissions([]);
+    }
   };
 
   const handleClaim = async (missionId) => {
