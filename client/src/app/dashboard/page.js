@@ -8,9 +8,9 @@ import Lottie from 'lottie-react';
 
 // Import Animasi (Pastikan nama file sesuai dengan yang ada di folder assets kamu)
 // Kalau nama filemu masih "healty.json" (typo), sesuaikan di sini ya
-import healthyAnim from '../../assets/lottie/healthy.json'; 
-import normalAnim from '../../assets/lottie/normal.json';
-import deadAnim from '../../assets/lottie/dead.json';
+import healthyAnim from '@/assets/lottie/healthy.json';
+import normalAnim from '@/assets/lottie/normal.json';
+import deadAnim from '@/assets/lottie/dead.json';
 
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { Leaf, Zap, TrendingDown, Plus, Heart } from 'lucide-react';
