@@ -18,7 +18,8 @@ export default function ActivityModal({ isOpen, onClose, userId, onRefresh }) {
   // Ambil data aktivitas
   useEffect(() => {
     if (isOpen) {
-      fetch('http://localhost:5000/api/logs/activities')
+      const API_URL = process.env.NEXT_PUBLIC_API_URL;
+      fetch(`${API_URL}/logs/activities`)
         .then(res => res.json())
         .then(data => setActivities(data))
         .catch(err => console.error(err));
