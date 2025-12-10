@@ -33,7 +33,18 @@ app.get('/', (req, res) => {
     res.send('🚀 CarbonTrack Backend is Running!');
 });
 
+// const PORT = process.env.PORT || 5000;
+// app.listen(PORT, () => {
+//     console.log(`Server running on port ${PORT}`);
+// });
+
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`);
-});
+
+// Jika dijalankan di local (bukan Vercel), tetap jalan pakai port
+if (require.main === module) {
+    app.listen(PORT, () => {
+        console.log(`Server running on port ${PORT}`);
+    });
+}
+
+module.exports = app;
