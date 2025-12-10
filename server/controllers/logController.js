@@ -21,21 +21,28 @@ exports.createLog = async (req, res) => {
         if (actRows.length === 0) return res.status(404).json({ message: 'Aktivitas tidak ditemukan' });
         
         const factor = actRows[0].emission_factor;
-        const carbonEmitted = (input_value * factor).toFixed(2); // Variabel diperbaiki
+        const carbonProduced = (input_value * factor).toFixed(2); 
 
-        // FIX: Gunakan 'date' dan 'carbon_emitted' sesuai database
+        // Simpan ke tabel daily_logs (Sesuai database kamu)
         await db.execute(
-            'INSERT INTO daily_logs (user_id, activity_id, input_value, carbon_emitted, date) VALUES (?, ?, ?, ?, ?)',
-            [user_id, activity_id, input_value, carbonEmitted, date]
+            'INSERT INTO daily_logs (user_id, activity_id, input_value, carbon_produced, log_date) VALUES (?, ?, ?, ?, ?)',
+            [user_id, activity_id, input_value, carbonProduced, date]
         );
 
         // Update Health Pohon
-        const damage = Math.ceil(carbonEmitted * 2); 
+        const damage = Math.ceil(carbonProduced * 2); 
         await db.execute('UPDATE users SET island_health = GREATEST(0, island_health - ?) WHERE id = ?', [damage, user_id]);
         
+        // Cek Badge (Logic 'Carbon Warrior')
+        const [countRows] = await db.execute('SELECT COUNT(*) as total FROM daily_logs WHERE user_id = ?', [user_id]);
+        const totalLogs = countRows[0].total;
+        
+        // Berikan badge jika eligible (Sederhana)
+        // ... (Logic badge dipersingkat agar fokus ke perbaikan error utama dulu)
+
         res.status(201).json({ 
             message: 'Log disimpan!', 
-            co2: carbonEmitted 
+            co2: carbonProduced 
         });
 
     } catch (error) {
@@ -50,26 +57,26 @@ exports.getDashboardSummary = async (req, res) => {
         const { userId } = req.params;
         const today = new Date().toISOString().split('T')[0];
 
-        // FIX: Gunakan 'carbon_emitted' dan 'date'
+        // Total Hari Ini
         const [todayRows] = await db.execute(
-            'SELECT SUM(carbon_emitted) as total FROM daily_logs WHERE user_id = ? AND date = ?',
+            'SELECT SUM(carbon_produced) as total FROM daily_logs WHERE user_id = ? AND log_date = ?',
             [userId, today]
         );
 
-        // FIX: Gunakan 'carbon_emitted'
+        // Total Seumur Hidup
         const [totalRows] = await db.execute(
-            'SELECT SUM(carbon_emitted) as total FROM daily_logs WHERE user_id = ?',
+            'SELECT SUM(carbon_produced) as total FROM daily_logs WHERE user_id = ?',
             [userId]
         );
 
-        // FIX: Gunakan 'date' dan 'carbon_emitted'
+        // Data Grafik 7 Hari Terakhir
         const [graphRows] = await db.execute(
-            `SELECT date, SUM(carbon_emitted) as total FROM daily_logs WHERE user_id = ? GROUP BY date ORDER BY date DESC LIMIT 7`,
+            `SELECT log_date, SUM(carbon_produced) as total FROM daily_logs WHERE user_id = ? GROUP BY log_date ORDER BY log_date DESC LIMIT 7`,
             [userId]
         );
 
         const formattedGraph = graphRows.map(row => ({
-            name: new Date(row.date).toLocaleDateString('id-ID', { weekday: 'short' }),
+            name: new Date(row.log_date).toLocaleDateString('id-ID', { weekday: 'short' }),
             co2: parseFloat(row.total)
         })).reverse();
 
@@ -85,7 +92,7 @@ exports.getDashboardSummary = async (req, res) => {
     }
 };
 
-// 4. RIWAYAT LOG
+// 4. RIWAYAT LOG (History Page) - INI YANG KEMARIN BIKIN ERROR
 exports.getHistoryLogs = async (req, res) => {
     try {
         const { userId } = req.params;
@@ -93,39 +100,42 @@ exports.getHistoryLogs = async (req, res) => {
 
         let dateCondition = "";
         
-        // FIX: Gunakan kolom 'date' untuk filter
+        // Gunakan 'log_date' bukan 'date'
         switch (filter) {
             case 'daily':
-                dateCondition = "AND date = CURDATE()";
+                dateCondition = "AND DATE(log_date) = CURDATE()";
                 break;
             case 'weekly':
-                dateCondition = "AND YEARWEEK(date, 1) = YEARWEEK(CURDATE(), 1)";
+                dateCondition = "AND YEARWEEK(log_date, 1) = YEARWEEK(CURDATE(), 1)";
                 break;
             case 'monthly':
-                dateCondition = "AND MONTH(date) = MONTH(CURDATE()) AND YEAR(date) = YEAR(CURDATE())";
+                dateCondition = "AND MONTH(log_date) = MONTH(CURDATE()) AND YEAR(log_date) = YEAR(CURDATE())";
                 break;
             case 'yearly':
-                dateCondition = "AND YEAR(date) = YEAR(CURDATE())";
+                dateCondition = "AND YEAR(log_date) = YEAR(CURDATE())";
                 break;
             default:
                 dateCondition = ""; 
                 break;
         }
 
-        // FIX: Query disesuaikan dengan nama kolom database
+        // Query JOIN ke daily_logs
+        // Kita gunakan ALIAS (AS) supaya frontend tidak perlu diubah
+        // log_date -> jadi date
+        // carbon_produced -> jadi carbon_emission
         const query = `
             SELECT 
                 daily_logs.id, 
-                daily_logs.date, 
+                daily_logs.log_date as date, 
                 daily_logs.input_value, 
-                daily_logs.carbon_emitted as carbon_emission,
+                daily_logs.carbon_produced as carbon_emission,
                 activities.activity_name,
                 activities.category,
                 activities.unit
             FROM daily_logs
             JOIN activities ON daily_logs.activity_id = activities.id
             WHERE daily_logs.user_id = ? ${dateCondition}
-            ORDER BY daily_logs.date DESC, daily_logs.id DESC
+            ORDER BY daily_logs.log_date DESC, daily_logs.id DESC
         `;
 
         const [rows] = await db.execute(query, [userId]);
