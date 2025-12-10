@@ -20,8 +20,6 @@ exports.updateProfile = async (req, res) => {
     try {
         const { userId, username, email } = req.body;
         
-        // Cek apakah username/email baru sudah dipakai orang lain (opsional tapi bagus)
-        // Disini kita langsung update aja biar cepat
         await db.execute(
             'UPDATE users SET username = ?, email = ? WHERE id = ?',
             [username, email, userId]
@@ -32,19 +30,24 @@ exports.updateProfile = async (req, res) => {
         res.status(500).json({ message: 'Gagal update profil' });
     }
 };
+
 // Ambil Profil Lengkap (User + Stats + Badges)
 exports.getUserProfile = async (req, res) => {
     try {
         const { userId } = req.params;
 
+        // 1. Data User
         const [userRows] = await db.execute('SELECT id, username, email, current_level, total_xp, island_health, created_at FROM users WHERE id = ?', [userId]);
         if (userRows.length === 0) return res.status(404).json({ message: 'User not found' });
 
-        // FIX: Ubah 'carbon_produced' jadi 'carbon_emitted'
+        // 2. Statistik Total Emisi
+        // PERBAIKAN 1: 'carbon_produced' -> 'carbon_emitted'
         const [logRows] = await db.execute('SELECT SUM(carbon_emitted) as total_emission, COUNT(*) as total_logs FROM daily_logs WHERE user_id = ?', [userId]);
 
+        // 3. Daftar Badge
+        // PERBAIKAN 2: 'b.icon' -> 'b.icon_url'
         const [badgeRows] = await db.execute(`
-            SELECT b.name, b.icon, b.description 
+            SELECT b.name, b.icon_url as icon, b.description 
             FROM user_badges ub 
             JOIN badges b ON ub.badge_id = b.id 
             WHERE ub.user_id = ?
@@ -60,6 +63,7 @@ exports.getUserProfile = async (req, res) => {
         });
 
     } catch (error) {
+        console.error("Error Profile:", error); // Tambahkan log biar gampang debug
         res.status(500).json({ message: 'Server Error' });
     }
 };
