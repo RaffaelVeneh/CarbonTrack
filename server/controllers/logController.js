@@ -79,6 +79,18 @@ exports.createLog = async (req, res) => {
 exports.getDashboardSummary = async (req, res) => {
     try {
         const { userId } = req.params;
+        
+        if (!userId) {
+            return res.status(400).json({ 
+                message: 'User ID required',
+                todayEmission: 0,
+                todaySaved: 0,
+                totalEmission: 0,
+                totalSaved: 0,
+                graphData: []
+            });
+        }
+
         const today = new Date().toISOString().split('T')[0];
 
         // Total Hari Ini
@@ -114,17 +126,28 @@ exports.getDashboardSummary = async (req, res) => {
             saved: parseFloat(row.saved || 0)
         })).reverse();
 
-        res.json({
-            todayEmission: parseFloat(todayRows[0].emission || 0).toFixed(2),
-            todaySaved: parseFloat(todayRows[0].saved || 0).toFixed(2),
-            totalEmission: parseFloat(totalRows[0].total_emission || 0).toFixed(2),
-            totalSaved: parseFloat(totalRows[0].total_saved || 0).toFixed(2),
+        const response = {
+            todayEmission: parseFloat(todayRows[0]?.emission || 0).toFixed(2),
+            todaySaved: parseFloat(todayRows[0]?.saved || 0).toFixed(2),
+            totalEmission: parseFloat(totalRows[0]?.total_emission || 0).toFixed(2),
+            totalSaved: parseFloat(totalRows[0]?.total_saved || 0).toFixed(2),
             graphData: formattedGraph
-        });
+        };
+
+        console.log('✅ Dashboard summary for user', userId, ':', response);
+        res.json(response);
 
     } catch (error) {
-        console.error("Gagal getSummary:", error);
-        res.status(500).json({ message: 'Gagal ambil summary' });
+        console.error("❌ Gagal getSummary:", error);
+        res.status(500).json({ 
+            message: 'Gagal ambil summary',
+            error: error.message,
+            todayEmission: 0,
+            todaySaved: 0,
+            totalEmission: 0,
+            totalSaved: 0,
+            graphData: []
+        });
     }
 };
 

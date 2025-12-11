@@ -50,28 +50,28 @@ export default function Dashboard() {
       console.log('Stats response:', dataStats);
       console.log('Graph data:', dataStats.graphData);
       
-      if (resStats.ok) {
-        // Normalize data format - handle both old (co2) and new (emission/saved) format
-        const normalizedStats = {
-          todayEmission: parseFloat(dataStats.todayEmission || 0),
-          todaySaved: parseFloat(dataStats.todaySaved || 0),
-          totalEmission: parseFloat(dataStats.totalEmission || 0),
-          totalSaved: parseFloat(dataStats.totalSaved || 0),
-          graphData: []
-        };
-        
-        if (dataStats.graphData && dataStats.graphData.length > 0) {
-          normalizedStats.graphData = dataStats.graphData.map(item => ({
-            name: item.name,
-            emission: item.emission !== undefined ? parseFloat(item.emission || 0) : parseFloat(item.co2 || 0),
-            saved: item.saved !== undefined ? parseFloat(item.saved || 0) : 0
-          }));
-        }
-        
-        console.log('Normalized stats:', normalizedStats);
-        setStats(normalizedStats);
-      } else {
-        console.error('Stats error:', dataStats);
+      // Always set stats, even if response not OK (use default values)
+      const normalizedStats = {
+        todayEmission: parseFloat(dataStats?.todayEmission || 0),
+        todaySaved: parseFloat(dataStats?.todaySaved || 0),
+        totalEmission: parseFloat(dataStats?.totalEmission || 0),
+        totalSaved: parseFloat(dataStats?.totalSaved || 0),
+        graphData: []
+      };
+      
+      if (dataStats?.graphData && Array.isArray(dataStats.graphData) && dataStats.graphData.length > 0) {
+        normalizedStats.graphData = dataStats.graphData.map(item => ({
+          name: item.name || 'Unknown',
+          emission: item.emission !== undefined ? parseFloat(item.emission || 0) : parseFloat(item.co2 || 0),
+          saved: item.saved !== undefined ? parseFloat(item.saved || 0) : 0
+        }));
+      }
+      
+      console.log('Normalized stats:', normalizedStats);
+      setStats(normalizedStats);
+      
+      if (!resStats.ok) {
+        console.warn('⚠️ Stats fetch not OK but using default values:', dataStats);
       }
 
       const resUser = await fetch(`${API_URL}/users/profile/${userId}`);

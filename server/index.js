@@ -11,6 +11,7 @@ const missionRoutes = require('./routes/missionRoutes');
 // --- 2. IMPORT ROUTES (YANG BARU DITAMBAHKAN) ---
 const userRoutes = require('./routes/userRoutes'); // <-- TAMBAHAN BARU (Untuk Leaderboard & Profil)
 const aiRoutes = require('./routes/aiRoutes');     // <-- TAMBAHAN BARU (Untuk AI Assistant)
+const badgeRoutes = require('./routes/badgeRoutes'); // <-- TAMBAHAN BARU (Untuk Badge System)
 
 dotenv.config();
 const app = express();
@@ -27,6 +28,7 @@ app.use('/api/missions', missionRoutes);
 // --- 4. GUNAKAN ROUTES BARU ---
 app.use('/api/users', userRoutes); // <-- TAMBAHAN BARU (Akses: /api/users/leaderboard)
 app.use('/api/ai', aiRoutes);       // <-- TAMBAHAN BARU (Akses: /api/ai/ask)
+app.use('/api/badges', badgeRoutes); // <-- TAMBAHAN BARU (Akses: /api/badges)
 
 // Test Route
 app.get('/', (req, res) => {

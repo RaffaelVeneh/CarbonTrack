@@ -3,7 +3,8 @@
 import { useEffect, useState } from 'react';
 import Sidebar from '@/components/Sidebar';
 import { Target, CheckCircle, Lock, Zap, PartyPopper, TrendingUp } from 'lucide-react';
-import Confetti from 'react-confetti'; 
+import Confetti from 'react-confetti';
+import { useBadge } from '@/contexts/BadgeContext'; // Import badge context 
 
 export default function MissionsPage() {
   const [missions, setMissions] = useState([]);
@@ -11,6 +12,9 @@ export default function MissionsPage() {
   const [user, setUser] = useState(null);
   const [showConfetti, setShowConfetti] = useState(false);
   const [modalInfo, setModalInfo] = useState({ show: false, title: '', message: '', type: 'success' });
+  
+  // Get badge context
+  const { checkBadges } = useBadge();
   
   // State untuk floating notification
   const [notification, setNotification] = useState({
@@ -133,6 +137,9 @@ export default function MissionsPage() {
                     setNotification(prev => ({ ...prev, show: false }));
                 }, 5000);
             }, 200);
+
+            // ✅ CHECK FOR NEW BADGES AFTER CLAIMING MISSION
+            await checkBadges(user.id);
 
             // COMMENT OUT MODAL - Pakai floating notification aja
             // if (leveledUp) {

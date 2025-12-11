@@ -4,6 +4,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import Sidebar from "@/components/Sidebar";     // <--- 1. Import Sidebar
 import { usePathname } from "next/navigation";  // <--- 2. Import usePathname
+import { BadgeProvider } from "@/contexts/BadgeContext"; // <--- 3. Import BadgeProvider
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -28,19 +29,21 @@ export default function RootLayout({ children }) {
   return (
     <html lang="en">
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
-        <div className="flex min-h-screen bg-gray-50">
-          
-          {/* Tampilkan Sidebar KECUALI di halaman Login/Register */}
-          {!disableSidebar.includes(pathname) && <Sidebar />}
+        <BadgeProvider>
+          <div className="flex min-h-screen bg-gray-50">
+            
+            {/* Tampilkan Sidebar KECUALI di halaman Login/Register */}
+            {!disableSidebar.includes(pathname) && <Sidebar />}
 
-          {/* Area Konten Utama */}
-          {/* Tambahkan margin kiri (ml-64) jika Sidebar aktif agar konten tidak tertutup */}
-          {/* Khusus /assistant tidak pakai padding agar chat fullscreen */}
-          <main className={`flex-1 transition-all duration-300 ${!disableSidebar.includes(pathname) ? "md:ml-0" : ""} ${pathname === '/assistant' ? '' : 'p-8'}`}>
-            {children}
-          </main>
-          
-        </div>
+            {/* Area Konten Utama */}
+            {/* Tambahkan margin kiri (ml-64) jika Sidebar aktif agar konten tidak tertutup */}
+            {/* Khusus /assistant tidak pakai padding agar chat fullscreen */}
+            <main className={`flex-1 transition-all duration-300 ${!disableSidebar.includes(pathname) ? "md:ml-0" : ""} ${pathname === '/assistant' ? '' : 'p-8'}`}>
+              {children}
+            </main>
+            
+          </div>
+        </BadgeProvider>
       </body>
     </html>
   );
