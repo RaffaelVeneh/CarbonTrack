@@ -24,9 +24,13 @@ export default function ActivityModal({ isOpen, onClose, userId, onRefresh, init
             setActivities(data);
             if (initialActivityId) {
                 const targetId = parseInt(initialActivityId);
+                const targetActivity = data.find(act => act.id === targetId);
                 setSelectedActivity(targetId);
-                if (targetId >= 100) setMode('saving');
-                else setMode('emission');
+                if (targetActivity?.impact_type === 'positive') {
+                    setMode('saving');
+                } else {
+                    setMode('emission');
+                }
             } else {
                 setSelectedActivity('');
                 setMode('emission');
@@ -37,7 +41,7 @@ export default function ActivityModal({ isOpen, onClose, userId, onRefresh, init
   }, [isOpen, API_URL, initialActivityId]);
 
   const filteredActivities = activities.filter(act => 
-    mode === 'emission' ? act.id < 100 : act.id >= 100
+    mode === 'emission' ? act.impact_type === 'negative' : act.impact_type === 'positive'
   );
 
   const handleSubmit = async (e) => {

@@ -3,7 +3,19 @@ const db = require('../config/db');
 // 1. AMBIL DAFTAR AKTIVITAS
 exports.getActivities = async (req, res) => {
     try {
-        const [rows] = await db.execute('SELECT * FROM activities');
+        const { type } = req.query; // optional filter: 'positive' atau 'negative'
+        
+        let query = 'SELECT * FROM activities';
+        let params = [];
+        
+        if (type === 'positive' || type === 'negative') {
+            query += ' WHERE impact_type = ?';
+            params.push(type);
+        }
+        
+        query += ' ORDER BY category, activity_name';
+        
+        const [rows] = await db.execute(query, params);
         res.json(rows);
     } catch (error) {
         console.error(error);
@@ -28,15 +40,34 @@ exports.createLog = async (req, res) => {
         
         const activity = actRows[0];
         const factor = parseFloat(activity.emission_factor);
+        const impactType = activity.impact_type;
         
-        // HITUNG EMISI/HEMAT
-        const carbonProduced = (parseFloat(input_value) * factor).toFixed(2); 
+        // HITUNG EMISI/HEMAT BERDASARKAN IMPACT_TYPE
+        let carbonProduced = 0;
         let carbonSaved = 0;
         
-        if (parseInt(activity_id) === 101 || parseInt(activity_id) === 102) {
-             carbonSaved = (parseFloat(input_value) * 0.192).toFixed(2);
-        } else if (parseInt(activity_id) === 104) {
-            carbonSaved = (parseFloat(input_value) * 0.05).toFixed(2);
+        if (impactType === 'negative') {
+            // Aktivitas buruk = menghasilkan emisi
+            carbonProduced = (parseFloat(input_value) * factor).toFixed(2);
+        } else if (impactType === 'positive') {
+            // Aktivitas baik = menghemat emisi (equivalent dari aktivitas buruk yang dihindari)
+            // Untuk transportasi: gunakan baseline motor (0.103 kg/km) atau mobil (0.192 kg/km)
+            if (activity.category === 'transportation') {
+                // Asumsi: menggantikan mobil (0.192 kg/km) - kecuali jika ada emission_factor kecil
+                const baseline = factor > 0 ? 0.192 - factor : 0.192; // Selisih dari baseline
+                carbonSaved = (parseFloat(input_value) * baseline).toFixed(2);
+            } else if (activity.category === 'waste') {
+                // Daur ulang = menghemat emisi produksi baru (plastik ~2.5, kertas ~1.8)
+                const wasteBaseline = activity_id === 160 ? 2.5 : activity_id === 161 ? 1.8 : 1.0;
+                carbonSaved = (parseFloat(input_value) * wasteBaseline).toFixed(2);
+            } else if (activity.category === 'energy') {
+                // Hemat energi = menghemat emisi listrik (0.85 kg/kWh)
+                const energyBaseline = 0.85;
+                carbonSaved = (parseFloat(input_value) * energyBaseline).toFixed(2);
+            } else {
+                // Default: gunakan faktor kecil untuk aktivitas positif lainnya
+                carbonSaved = (parseFloat(input_value) * 0.5).toFixed(2);
+            }
         }
 
         // B. SIMPAN KE LOG HARIAN
