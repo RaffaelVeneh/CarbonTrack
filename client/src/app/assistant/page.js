@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Sidebar from '@/components/Sidebar';
 import { Send, Bot, User, RotateCcw } from 'lucide-react';
 
@@ -12,6 +12,8 @@ export default function AssistantPage() {
   const [messages, setMessages] = useState([DEFAULT_MESSAGE]);
   const [loading, setLoading] = useState(false);
   const [isClient, setIsClient] = useState(false); // Track client-side mounting
+  const messagesEndRef = useRef(null); // Ref untuk scroll ke bawah
+  const textareaRef = useRef(null); // Ref untuk textarea auto-resize
 
   // Load chat history HANYA di client-side (after hydration)
   useEffect(() => {
@@ -37,11 +39,35 @@ export default function AssistantPage() {
     }
   }, [messages, isClient]);
 
+  // Auto-scroll ke bawah setiap ada message baru
+  useEffect(() => {
+    if (messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior: 'smooth', block: 'end' });
+    }
+  }, [messages, loading]); // Trigger saat messages berubah atau loading state berubah
+
+  // Auto-resize textarea based on content
+  useEffect(() => {
+    if (textareaRef.current) {
+      textareaRef.current.style.height = 'auto';
+      textareaRef.current.style.height = `${Math.min(200, Math.max(48, textareaRef.current.scrollHeight))}px`;
+    }
+  }, [input]);
+
   // Handle new chat - reset ke default message
   const handleNewChat = () => {
     setMessages([DEFAULT_MESSAGE]);
     setInput('');
     localStorage.removeItem(STORAGE_KEY);
+  };
+
+  // Handle keyboard shortcuts (Shift+Enter = newline, Enter = send)
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault(); // Prevent default newline
+      handleSend(e);
+    }
+    // Shift+Enter akan default behavior (newline)
   };
   
   const handleSend = async (e) => {
@@ -106,7 +132,7 @@ export default function AssistantPage() {
           </button>
         </div>
 
-        {/* Area Chat Bubble - Reduced Padding */}
+        {/* Area Chat Bubble - Auto-hide Scrollbar */}
         <div className="flex-1 overflow-y-auto px-4 py-2 space-y-3">
           {messages.map((msg, idx) => (
             <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
@@ -141,26 +167,36 @@ export default function AssistantPage() {
               </div>
             </div>
           )}
+          
+          {/* Scroll anchor - invisible element at bottom */}
+          <div ref={messagesEndRef} className="h-1" />
         </div>
 
-        {/* Input Area - Compact & Centered */}
-        <div className="p-8 bg-white/80 backdrop-blur-sm border-t border-gray-100">
-          <form onSubmit={handleSend} className="flex gap-2 max-w-3xl mx-auto">
-            <input
-              type="text"
+        {/* Input Area - Auto-resize Textarea */}
+        <div className="px-4 py-3 bg-white/80 backdrop-blur-sm border-t border-gray-100">
+          <form onSubmit={handleSend} className="flex gap-2 max-w-3xl mx-auto items-end">
+            <textarea
+              ref={textareaRef}
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              placeholder="💬 Tanya tips hemat energi, transportasi, atau diet ramah lingkungan..."
-              className="flex-1 px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-full focus:ring-2 focus:ring-emerald-400 focus:border-transparent outline-none transition text-base"
+              onKeyDown={handleKeyDown}
+              placeholder="💬 Tanya tips hemat energi... (Shift+Enter untuk baris baru)"
+              rows={1}
+              className="flex-1 px-4 py-3 bg-gray-50 border border-gray-200 rounded-2xl focus:ring-2 focus:ring-emerald-400 focus:border-transparent outline-none transition-all text-base resize-none overflow-y-auto min-h-[48px] max-h-[200px] scrollbar-auto-hide"
             />
             <button 
               type="submit" 
-              disabled={loading}
-              className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white p-2.5 rounded-full shadow-lg transition disabled:opacity-50 disabled:cursor-not-allowed"
+              disabled={loading || !input.trim()}
+              className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white p-3 rounded-full shadow-lg transition disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0 h-[48px] w-[48px] flex items-center justify-center"
+              title="Kirim pesan (Enter)"
             >
               <Send size={20} />
             </button>
           </form>
+          <p className="text-xs text-gray-500 text-center mt-2">
+            Tekan <kbd className="px-1.5 py-0.5 bg-gray-200 rounded text-xs">Enter</kbd> untuk kirim, 
+            <kbd className="px-1.5 py-0.5 bg-gray-200 rounded text-xs ml-1">Shift+Enter</kbd> untuk baris baru
+          </p>
         </div>
 
       </main>
