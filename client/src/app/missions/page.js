@@ -2,15 +2,29 @@
 
 import { useEffect, useState } from 'react';
 import Sidebar from '@/components/Sidebar';
-import { Target, CheckCircle, Lock, Zap, PartyPopper } from 'lucide-react'; // Tambah Lock
+import { Target, CheckCircle, Lock, Zap, PartyPopper, TrendingUp } from 'lucide-react';
 import Confetti from 'react-confetti'; 
 
 export default function MissionsPage() {
   const [missions, setMissions] = useState([]);
-  const [levelInfo, setLevelInfo] = useState(null); // State baru untuk XP
+  const [levelInfo, setLevelInfo] = useState(null);
   const [user, setUser] = useState(null);
   const [showConfetti, setShowConfetti] = useState(false);
   const [modalInfo, setModalInfo] = useState({ show: false, title: '', message: '', type: 'success' });
+  
+  // State untuk floating notification
+  const [notification, setNotification] = useState({
+    show: false,
+    oldXP: 0,
+    newXP: 0,
+    xpGained: 0,
+    oldLevel: 0,
+    newLevel: 0,
+    leveledUp: false,
+    oldPercentage: 0,
+    newPercentage: 0,
+    xpPerLevel: 100 // Default 100 XP per level
+  });
 
   useEffect(() => {
     const userData = JSON.parse(localStorage.getItem('user'));
@@ -43,9 +57,17 @@ export default function MissionsPage() {
   };
 
   const handleClaim = async (missionId) => {
-    // ... (Kode handleClaim sama seperti sebelumnya) ...
-    // Pastikan memanggil fetchMissions(user.id) setelah sukses
     try {
+        // Simpan state sebelum claim
+        const oldXP = levelInfo.currentXP;
+        const oldLevel = levelInfo.currentLevel;
+        const xpPerLevel = levelInfo.xpPerLevel; // 100 XP per level
+        
+        // Hitung XP progress SEBELUM claim
+        // Formula: (currentXP) % xpPerLevel untuk dapat XP di current level
+        const oldXPInCurrentLevel = oldXP % xpPerLevel || (oldLevel === 1 ? oldXP : xpPerLevel);
+        const oldPercentage = (oldXPInCurrentLevel / xpPerLevel) * 100;
+
         const res = await fetch(`${API_URL}/missions/claim`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -55,29 +77,86 @@ export default function MissionsPage() {
         console.log('Claim result:', result);
 
         if (res.ok) {
-            fetchMissions(user.id); // Refresh data
-            if (result.leveledUp) {
-                setShowConfetti(true);
-                setModalInfo({ 
-                    show: true, 
-                    type: 'levelup', 
-                    title: `Level Up ke ${result.newLevel}! 🎉`, 
-                    message: `Hebat! +${result.xpAdded} XP dan +${result.healthAdded} ❤️ didapatkan!` 
+            // Fetch missions baru untuk dapat level info terbaru
+            await fetchMissions(user.id);
+            
+            // Hitung data untuk notification
+            const xpGained = result.xpAdded || 0;
+            const newXP = oldXP + xpGained;
+            const newLevel = result.newLevel || oldLevel;
+            const leveledUp = result.leveledUp || false;
+            
+            // Hitung persentase SETELAH claim
+            // Kalau level up, XP reset ke progress baru di level baru
+            setTimeout(() => {
+                // Ambil data fresh dari levelInfo yang sudah di-update
+                const currentXPAfterClaim = levelInfo.currentXP;
+                const currentLevelAfterClaim = levelInfo.currentLevel;
+                
+                // XP progress di level saat ini (setelah claim)
+                const newXPInCurrentLevel = currentXPAfterClaim % xpPerLevel || (currentLevelAfterClaim === 1 ? currentXPAfterClaim : (leveledUp ? levelInfo.xpProgress : xpPerLevel));
+                const newPercentage = (newXPInCurrentLevel / xpPerLevel) * 100;
+                
+                console.log('XP Calculation:', {
+                    oldXP,
+                    newXP: currentXPAfterClaim,
+                    xpGained,
+                    oldXPInCurrentLevel,
+                    newXPInCurrentLevel,
+                    oldPercentage,
+                    newPercentage,
+                    leveledUp
                 });
-                setTimeout(() => setShowConfetti(false), 5000);
-            } else {
-                setModalInfo({ 
-                    show: true, 
-                    type: 'success', 
-                    title: 'Misi Selesai! ✅', 
-                    message: `+${result.xpAdded} XP dan +${result.healthAdded} ❤️ didapatkan` 
+                
+                // Show floating notification
+                setNotification({
+                    show: true,
+                    oldXP: oldXPInCurrentLevel,
+                    newXP: newXPInCurrentLevel,
+                    xpGained,
+                    oldLevel,
+                    newLevel,
+                    leveledUp,
+                    oldPercentage,
+                    newPercentage,
+                    xpPerLevel
                 });
-            }
+
+                // Confetti untuk level up (trigger bersamaan dengan notification)
+                if (leveledUp) {
+                    setShowConfetti(true);
+                    setTimeout(() => setShowConfetti(false), 5000);
+                }
+
+                // Auto-hide notification after 5 seconds
+                setTimeout(() => {
+                    setNotification(prev => ({ ...prev, show: false }));
+                }, 5000);
+            }, 200);
+
+            // COMMENT OUT MODAL - Pakai floating notification aja
+            // if (leveledUp) {
+            //     setModalInfo({ 
+            //         show: true, 
+            //         type: 'levelup', 
+            //         title: `Level Up ke ${result.newLevel}! 🎉`, 
+            //         message: `Hebat! +${result.xpAdded} XP dan +${result.healthAdded} ❤️ didapatkan!` 
+            //     });
+            // } else {
+            //     setModalInfo({ 
+            //         show: true, 
+            //         type: 'success', 
+            //         title: 'Misi Selesai! ✅', 
+            //         message: `+${result.xpAdded} XP dan +${result.healthAdded} ❤️ didapatkan` 
+            //     });
+            // }
         } else {
-            // Tampilkan error jika syarat belum terpenuhi
+            // Error tetap pakai modal
             setModalInfo({ show: true, type: 'error', title: 'Ups!', message: result.message });
         }
-    } catch (error) { console.error(error); }
+    } catch (error) { 
+        console.error(error); 
+    }
   };
 
   const closeModal = () => setModalInfo({ ...modalInfo, show: false });
@@ -91,6 +170,105 @@ export default function MissionsPage() {
     <div className="min-h-screen bg-gray-50 flex">
       <Sidebar />
       {showConfetti && <Confetti recycle={false} numberOfPieces={500} />}
+
+      {/* === FLOATING XP NOTIFICATION === */}
+      <div className={`fixed top-4 left-1/2 -translate-x-1/2 z-50 transition-all duration-500 ${
+        notification.show ? 'translate-y-0 opacity-100' : '-translate-y-full opacity-0 pointer-events-none'
+      }`}>
+        <div className="bg-gradient-to-r from-emerald-600 to-teal-500 rounded-2xl p-6 shadow-2xl text-white min-w-[400px] border-4 border-white relative overflow-hidden">
+          
+          {/* Celebration Confetti Background (untuk level up) */}
+          {notification.leveledUp && (
+            <div className="absolute inset-0 pointer-events-none overflow-hidden">
+              {/* Falling confetti emojis */}
+              {[...Array(20)].map((_, i) => (
+                <span
+                  key={i}
+                  className="absolute text-2xl animate-confetti-fall"
+                  style={{
+                    left: `${Math.random() * 100}%`,
+                    top: `-${Math.random() * 20}px`,
+                    animationDelay: `${Math.random() * 2}s`,
+                    animationDuration: `${2 + Math.random() * 2}s`
+                  }}
+                >
+                  {['🎉', '🎊', '⭐', '✨', '🌟', '💚', '🏆'][Math.floor(Math.random() * 7)]}
+                </span>
+              ))}
+            </div>
+          )}
+
+          {/* Close button */}
+          <button
+            onClick={() => setNotification(prev => ({ ...prev, show: false }))}
+            className="absolute top-2 right-2 bg-white/20 hover:bg-white/30 rounded-full w-6 h-6 flex items-center justify-center transition-colors z-10"
+            title="Tutup"
+          >
+            <span className="text-white text-sm">✕</span>
+          </button>
+
+          {/* Header dengan icon */}
+          <div className="flex items-center gap-3 mb-4 relative z-10">
+            <div className={`p-2 rounded-full ${notification.leveledUp ? 'bg-yellow-400 animate-bounce' : 'bg-white/20'}`}>
+              {notification.leveledUp ? (
+                <PartyPopper size={24} className="text-emerald-600" />
+              ) : (
+                <TrendingUp size={24} />
+              )}
+            </div>
+            <div>
+              <h3 className="font-bold text-lg">
+                {notification.leveledUp ? `🎉 Level Up ke ${notification.newLevel}!` : '⚡ XP Bertambah!'}
+              </h3>
+              <p className="text-sm opacity-90">+{notification.xpGained} XP didapatkan</p>
+            </div>
+          </div>
+
+          {/* Level Info */}
+          <div className="flex justify-between items-center mb-3 relative z-10">
+            <div>
+              <p className="text-sm opacity-80">Level</p>
+              <p className="text-2xl font-bold">
+                {notification.leveledUp ? (
+                  <span className="animate-pulse">{notification.oldLevel} → {notification.newLevel}</span>
+                ) : (
+                  notification.oldLevel
+                )}
+              </p>
+            </div>
+            <div className="text-right">
+              <p className="text-sm opacity-80">XP di Level Ini</p>
+              <p className="text-xl font-bold">
+                {notification.leveledUp ? (
+                  <span className="text-yellow-300 animate-pulse">LEVEL UP!</span>
+                ) : (
+                  `${Math.round(notification.newXP)} / ${notification.xpPerLevel}`
+                )}
+              </p>
+            </div>
+          </div>
+
+          {/* Animated Progress Bar */}
+          <div className="bg-black/20 rounded-full h-4 overflow-hidden relative z-10">
+            <div 
+              className="bg-yellow-400 h-full transition-all duration-1000 ease-out absolute left-0 top-0"
+              style={{ 
+                width: `${notification.show ? (notification.leveledUp ? 100 : notification.newPercentage) : notification.oldPercentage}%` 
+              }}
+            >
+              {/* Shimmer effect */}
+              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-shimmer"></div>
+            </div>
+          </div>
+          
+          <p className="text-xs text-center mt-2 opacity-75 relative z-10">
+            {notification.leveledUp 
+              ? '🎊 Selamat! Misi baru terbuka!' 
+              : `${Math.round(notification.newPercentage)}% progress • ${notification.xpPerLevel - Math.round(notification.newXP)} XP lagi ke Level ${notification.oldLevel + 1}`
+            }
+          </p>
+        </div>
+      </div>
 
       <main className="flex-1 ml-64 p-8">
         
