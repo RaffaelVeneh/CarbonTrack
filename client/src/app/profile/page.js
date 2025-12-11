@@ -89,24 +89,71 @@ export default function ProfilePage() {
           <div className="lg:col-span-2">
             <div className="bg-white rounded-2xl p-8 shadow-sm border border-gray-100 h-full">
                 <h3 className="text-xl font-bold text-gray-800 mb-6 flex items-center gap-2">
-                    <Award size={24} className="text-yellow-500 fill-yellow-500"/> Koleksi Lencana (Badges)
+                    <Award size={24} className="text-yellow-500 fill-yellow-500"/> Koleksi Lencana
+                    <span className="text-sm font-normal text-gray-500">
+                        ({badges.filter(b => b.unlocked).length}/{badges.length})
+                    </span>
                 </h3>
                 
                 {badges.length === 0 ? (
                     <div className="flex flex-col items-center justify-center py-12 text-center border-2 border-dashed border-gray-200 rounded-2xl bg-gray-50">
                         <Award size={48} className="text-gray-300 mb-4" />
-                        <p className="text-gray-500 font-medium">Belum ada lencana yang didapat.</p>
-                        <p className="text-sm text-gray-400">Selesaikan misi & kurangi emisi untuk membukanya!</p>
+                        <p className="text-gray-500 font-medium">Belum ada data lencana.</p>
+                        <p className="text-sm text-gray-400">Selesaikan misi untuk membukanya!</p>
                     </div>
                 ) : (
                     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
                         {badges.map((badge, idx) => (
-                            <div key={idx} className="group flex flex-col items-center p-4 bg-yellow-50 rounded-2xl border border-yellow-100 transition-all hover:scale-105 hover:shadow-md hover:bg-yellow-100 cursor-help relative" title={badge.description}>
-                                <div className="text-4xl mb-3 drop-shadow-sm transition-transform group-hover:rotate-12">{badge.icon}</div>
-                                <span className="text-sm font-bold text-gray-800 text-center leading-tight">{badge.name}</span>
-                                {/* Tooltip sederhana */}
-                                <div className="absolute bottom-full mb-2 hidden group-hover:block w-32 bg-gray-800 text-white text-xs p-2 rounded text-center z-20">
-                                    {badge.description}
+                            <div 
+                                key={idx} 
+                                className={`group flex flex-col items-center p-4 rounded-2xl border transition-all hover:scale-105 cursor-help relative ${
+                                    badge.unlocked 
+                                        ? 'bg-yellow-50 border-yellow-200 hover:shadow-md hover:bg-yellow-100' 
+                                        : 'bg-gray-100 border-gray-200 opacity-60 hover:opacity-80'
+                                }`}
+                                title={badge.description}
+                            >
+                                {/* Lock overlay untuk badge yang belum unlock */}
+                                {!badge.unlocked && (
+                                    <div className="absolute top-2 right-2 bg-gray-800 text-white rounded-full p-1">
+                                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                                            <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                                        </svg>
+                                    </div>
+                                )}
+                                
+                                {/* Icon badge dengan grayscale filter jika locked */}
+                                <div className={`text-4xl mb-3 drop-shadow-sm transition-transform group-hover:rotate-12 ${
+                                    !badge.unlocked ? 'grayscale opacity-50' : ''
+                                }`}>
+                                    {badge.icon}
+                                </div>
+                                
+                                <span className={`text-sm font-bold text-center leading-tight ${
+                                    badge.unlocked ? 'text-gray-800' : 'text-gray-500'
+                                }`}>
+                                    {badge.name}
+                                </span>
+                                
+                                {/* Tier badge */}
+                                <span className={`text-xs mt-2 px-2 py-0.5 rounded-full font-semibold ${
+                                    badge.tier === 'bronze' ? 'bg-amber-100 text-amber-700' :
+                                    badge.tier === 'silver' ? 'bg-gray-200 text-gray-700' :
+                                    badge.tier === 'gold' ? 'bg-yellow-100 text-yellow-700' :
+                                    badge.tier === 'diamond' ? 'bg-blue-100 text-blue-700' :
+                                    'bg-purple-100 text-purple-700'
+                                }`}>
+                                    {badge.tier}
+                                </span>
+                                
+                                {/* Tooltip */}
+                                <div className="absolute bottom-full mb-2 hidden group-hover:block w-40 bg-gray-800 text-white text-xs p-3 rounded-lg text-center z-20 shadow-xl">
+                                    <p className="font-bold mb-1">{badge.name}</p>
+                                    <p className="opacity-90">{badge.description}</p>
+                                    {!badge.unlocked && (
+                                        <p className="mt-2 text-yellow-300 text-[10px]">🔒 Belum Terbuka</p>
+                                    )}
                                 </div>
                             </div>
                         ))}

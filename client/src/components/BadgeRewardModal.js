@@ -56,28 +56,28 @@ export default function BadgeRewardModal({ badge, onClose }) {
         />
       )}
 
-      {/* Modal Content */}
-      <div className="relative max-w-lg w-full mx-4 animate-scale-in">
-        {/* Close Button */}
+      {/* Modal Content - Responsive */}
+      <div className="relative max-w-[90vw] sm:max-w-md md:max-w-lg w-full mx-4 animate-scale-in">
+        {/* Close Button - Responsive Size */}
         <button
           onClick={onClose}
-          className="absolute -top-4 -right-4 z-10 bg-white text-gray-700 hover:bg-gray-100 rounded-full p-2 shadow-lg transition"
+          className="absolute -top-2 -right-2 sm:-top-4 sm:-right-4 z-10 bg-white text-gray-700 hover:bg-gray-100 rounded-full p-1.5 sm:p-2 shadow-lg transition"
           title="Tutup"
         >
-          <X size={24} />
+          <X size={20} className="sm:w-6 sm:h-6" />
         </button>
 
         {/* Card Container */}
-        <div className="bg-gradient-to-br from-white to-gray-50 rounded-3xl shadow-2xl overflow-hidden border-4 border-emerald-400">
-          {/* Header Section with Gradient */}
-          <div className={`bg-gradient-to-r ${tierStyle.bg} py-8 px-6 text-center relative overflow-hidden`}>
+        <div className="bg-gradient-to-br from-white to-gray-50 rounded-2xl sm:rounded-3xl shadow-2xl overflow-hidden border-2 sm:border-4 border-emerald-400">
+          {/* Header Section with Gradient - Responsive Padding */}
+          <div className={`bg-gradient-to-r ${tierStyle.bg} py-4 sm:py-6 md:py-8 px-4 sm:px-6 text-center relative overflow-hidden`}>
             {/* Animated Stars Background */}
             <div className="absolute inset-0 overflow-hidden opacity-20">
               {[...Array(20)].map((_, i) => (
                 <Sparkles
                   key={i}
-                  size={16}
-                  className="absolute animate-twinkle"
+                  size={12}
+                  className="absolute animate-twinkle sm:w-4 sm:h-4"
                   style={{
                     top: `${Math.random() * 100}%`,
                     left: `${Math.random() * 100}%`,
@@ -88,44 +88,44 @@ export default function BadgeRewardModal({ badge, onClose }) {
             </div>
 
             <div className="relative z-10">
-              <Award size={48} className="mx-auto mb-3 text-white drop-shadow-lg" />
-              <h2 className="text-3xl font-black text-white mb-2 drop-shadow-lg">
+              <Award size={32} className="mx-auto mb-2 text-white drop-shadow-lg sm:w-12 sm:h-12" />
+              <h2 className="text-xl sm:text-2xl md:text-3xl font-black text-white mb-1 sm:mb-2 drop-shadow-lg">
                 🎉 BADGE UNLOCKED! 🎉
               </h2>
-              <p className="text-white/90 text-sm font-medium">
+              <p className="text-white/90 text-xs sm:text-sm font-medium">
                 {TIER_LABELS[badge.tier]}
               </p>
             </div>
           </div>
 
-          {/* Badge Display Section */}
-          <div className="py-10 px-8 text-center">
-            {/* Badge Icon dengan Glow Effect */}
-            <div className={`inline-block mb-6 relative`}>
-              <div className={`absolute inset-0 bg-gradient-to-r ${tierStyle.bg} blur-2xl opacity-60 scale-110 animate-pulse`}></div>
-              <div className={`relative text-8xl animate-bounce-slow bg-gradient-to-br from-white to-gray-100 rounded-full p-6 border-4 ${tierStyle.border} shadow-2xl ${tierStyle.glow}`}>
+          {/* Badge Display Section - Responsive Padding */}
+          <div className="py-6 sm:py-8 md:py-10 px-4 sm:px-6 md:px-8 text-center">
+            {/* Badge Icon dengan Glow Effect - Responsive Size */}
+            <div className={`inline-block mb-4 sm:mb-6 relative`}>
+              <div className={`absolute inset-0 bg-gradient-to-r ${tierStyle.bg} blur-xl sm:blur-2xl opacity-60 scale-110 animate-pulse`}></div>
+              <div className={`relative text-5xl sm:text-6xl md:text-8xl animate-bounce-slow bg-gradient-to-br from-white to-gray-100 rounded-full p-4 sm:p-5 md:p-6 border-2 sm:border-4 ${tierStyle.border} shadow-2xl ${tierStyle.glow}`}>
                 {badge.icon}
               </div>
             </div>
 
-            {/* Badge Info */}
-            <h3 className="text-3xl font-black text-gray-800 mb-3">
+            {/* Badge Info - Responsive Text */}
+            <h3 className="text-xl sm:text-2xl md:text-3xl font-black text-gray-800 mb-2 sm:mb-3 px-2">
               {badge.name}
             </h3>
-            <p className="text-gray-600 text-lg mb-6 leading-relaxed">
+            <p className="text-gray-600 text-sm sm:text-base md:text-lg mb-4 sm:mb-6 leading-relaxed px-2">
               {badge.description}
             </p>
 
-            {/* Category Tag */}
-            <div className="inline-flex items-center gap-2 bg-emerald-100 text-emerald-700 px-4 py-2 rounded-full text-sm font-semibold mb-6">
-              <Star size={16} />
+            {/* Category Tag - Responsive */}
+            <div className="inline-flex items-center gap-1.5 sm:gap-2 bg-emerald-100 text-emerald-700 px-3 sm:px-4 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm font-semibold mb-4 sm:mb-6">
+              <Star size={14} className="sm:w-4 sm:h-4" />
               {badge.category.toUpperCase()}
             </div>
 
-            {/* Action Button */}
+            {/* Action Button - Responsive */}
             <button
               onClick={onClose}
-              className="w-full bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-bold py-4 px-8 rounded-2xl shadow-lg transition transform hover:scale-105 active:scale-95"
+              className="w-full bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-bold py-3 sm:py-4 px-6 sm:px-8 rounded-xl sm:rounded-2xl text-sm sm:text-base shadow-lg transition transform hover:scale-105 active:scale-95"
             >
               Mantap! Lanjutkan 🚀
             </button>

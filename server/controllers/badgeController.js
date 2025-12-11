@@ -26,7 +26,7 @@ const getAllBadges = async (req, res) => {
                     WHEN ub.id IS NOT NULL THEN TRUE 
                     ELSE FALSE 
                 END as unlocked,
-                ub.unlocked_at
+                ub.earned_at as unlocked_at
             FROM badges b
             LEFT JOIN user_badges ub ON b.id = ub.badge_id AND ub.user_id = ?
             ORDER BY 
@@ -53,28 +53,39 @@ const checkAndAwardBadges = async (req, res) => {
             return res.status(400).json({ error: 'User ID required' });
         }
 
+        console.log('🔍 Checking badges for user:', userId);
+
         // Get user stats
         const [userStats] = await db.execute(`
             SELECT 
-                u.level,
+                u.current_level as level,
                 u.total_xp,
                 u.island_health,
                 u.created_at,
-                COUNT(DISTINCT um.mission_id) as missions_completed,
+                COUNT(DISTINCT CASE WHEN um.status = 'claimed' THEN um.mission_id END) as missions_completed,
                 COALESCE(SUM(dl.carbon_saved), 0) as total_saved,
                 COALESCE(SUM(dl.carbon_produced), 0) as total_produced
             FROM users u
-            LEFT JOIN user_missions um ON u.id = um.user_id AND um.is_completed = 1
+            LEFT JOIN user_missions um ON u.id = um.user_id
             LEFT JOIN daily_logs dl ON u.id = dl.user_id
             WHERE u.id = ?
             GROUP BY u.id
         `, [userId]);
+        
+        console.log('📊 User stats:', userStats[0]);
 
         if (userStats.length === 0) {
             return res.status(404).json({ error: 'User not found' });
         }
 
         const stats = userStats[0];
+        
+        console.log('📈 Stats extracted:', {
+            level: stats.level,
+            total_xp: stats.total_xp,
+            missions_completed: stats.missions_completed,
+            total_saved: stats.total_saved
+        });
 
         // Get streak info
         const [streakData] = await db.execute(`
@@ -97,14 +108,15 @@ const checkAndAwardBadges = async (req, res) => {
 
         const currentStreak = streakData[0]?.max_streak || 0;
 
-        // Get transport stats
+        // Get transport stats - JOIN dengan activities table
         const [transportStats] = await db.execute(`
             SELECT 
-                SUM(CASE WHEN activity_type = 'Bersepeda' THEN distance ELSE 0 END) as cycling_distance,
-                SUM(CASE WHEN activity_type = 'Jalan Kaki' THEN distance ELSE 0 END) as walking_distance,
-                COUNT(CASE WHEN activity_type LIKE '%Transportasi Umum%' THEN 1 END) as public_transport_count
-            FROM daily_logs
-            WHERE user_id = ?
+                COALESCE(SUM(CASE WHEN a.activity_name = 'Bersepeda' THEN dl.input_value ELSE 0 END), 0) as cycling_distance,
+                COALESCE(SUM(CASE WHEN a.activity_name = 'Jalan Kaki' THEN dl.input_value ELSE 0 END), 0) as walking_distance,
+                COALESCE(COUNT(CASE WHEN a.activity_name LIKE '%Bus%' OR a.activity_name LIKE '%Kereta%' THEN 1 END), 0) as public_transport_count
+            FROM daily_logs dl
+            JOIN activities a ON dl.activity_id = a.id
+            WHERE dl.user_id = ?
         `, [userId]);
 
         const transport = transportStats[0] || { cycling_distance: 0, walking_distance: 0, public_transport_count: 0 };
@@ -119,9 +131,17 @@ const checkAndAwardBadges = async (req, res) => {
 
         const unlockedIds = unlockedBadges.map(b => b.badge_id);
 
-        const [allBadges] = await db.execute(`
-            SELECT * FROM badges WHERE id NOT IN (${unlockedIds.length > 0 ? unlockedIds.join(',') : '0'})
-        `);
+        // Perbaiki query dengan placeholder yang aman
+        let allBadges = [];
+        if (unlockedIds.length > 0) {
+            const placeholders = unlockedIds.map(() => '?').join(',');
+            [allBadges] = await db.execute(
+                `SELECT * FROM badges WHERE id NOT IN (${placeholders})`,
+                unlockedIds
+            );
+        } else {
+            [allBadges] = await db.execute(`SELECT * FROM badges`);
+        }
 
         // Check each badge requirement
         const newlyUnlockedBadges = [];
@@ -134,15 +154,15 @@ const checkAndAwardBadges = async (req, res) => {
                     unlocked = stats.level >= badge.requirement_value;
                     break;
 
-                case 'total_xp':
+                case 'xp': // Sesuaikan dengan db (bukan total_xp)
                     unlocked = stats.total_xp >= badge.requirement_value;
                     break;
 
-                case 'missions_completed':
+                case 'activity': // Sesuaikan dengan db (bukan missions_completed)
                     unlocked = stats.missions_completed >= badge.requirement_value;
                     break;
 
-                case 'total_saved':
+                case 'saving': // Sesuaikan dengan db (bukan total_saved)
                     unlocked = stats.total_saved >= badge.requirement_value;
                     break;
 
@@ -170,7 +190,7 @@ const checkAndAwardBadges = async (req, res) => {
                     unlocked = stats.island_health >= badge.requirement_value;
                     break;
 
-                case 'early_user':
+                case 'special': // Early adopter badge
                     unlocked = isEarlyAdopter;
                     break;
 
@@ -181,13 +201,16 @@ const checkAndAwardBadges = async (req, res) => {
                     break;
 
                 default:
+                    console.warn(`Unknown requirement_type: ${badge.requirement_type}`);
                     unlocked = false;
             }
 
             // Award badge if unlocked
             if (unlocked) {
+                console.log(`🎖️ Awarding badge: ${badge.name} (${badge.icon})`);
+                
                 await db.execute(`
-                    INSERT INTO user_badges (user_id, badge_id, unlocked_at)
+                    INSERT INTO user_badges (user_id, badge_id, earned_at)
                     VALUES (?, ?, NOW())
                 `, [userId, badge.id]);
 
@@ -201,6 +224,8 @@ const checkAndAwardBadges = async (req, res) => {
                 });
             }
         }
+        
+        console.log(`✅ Badge check complete. New badges: ${newlyUnlockedBadges.length}`);
 
         res.json({ 
             newBadges: newlyUnlockedBadges,
@@ -228,11 +253,11 @@ const getUserBadges = async (req, res) => {
                 b.description,
                 b.category,
                 b.tier,
-                ub.unlocked_at
+                ub.earned_at as unlocked_at
             FROM user_badges ub
             JOIN badges b ON ub.badge_id = b.id
             WHERE ub.user_id = ?
-            ORDER BY ub.unlocked_at DESC
+            ORDER BY ub.earned_at DESC
         `, [userId]);
 
         res.json({ badges, count: badges.length });

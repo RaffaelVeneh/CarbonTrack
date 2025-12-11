@@ -68,8 +68,8 @@ export default function MissionsPage() {
         const xpPerLevel = levelInfo.xpPerLevel; // 100 XP per level
         
         // Hitung XP progress SEBELUM claim
-        // Formula: (currentXP) % xpPerLevel untuk dapat XP di current level
-        const oldXPInCurrentLevel = oldXP % xpPerLevel || (oldLevel === 1 ? oldXP : xpPerLevel);
+        // xpProgress sudah merupakan XP di level saat ini dari backend
+        const oldXPInCurrentLevel = levelInfo.xpProgress;
         const oldPercentage = (oldXPInCurrentLevel / xpPerLevel) * 100;
 
         const res = await fetch(`${API_URL}/missions/claim`, {
@@ -81,82 +81,65 @@ export default function MissionsPage() {
         console.log('Claim result:', result);
 
         if (res.ok) {
-            // Fetch missions baru untuk dapat level info terbaru
-            await fetchMissions(user.id);
-            
-            // Hitung data untuk notification
+            // Hitung data untuk notification SEBELUM fetch
             const xpGained = result.xpAdded || 0;
-            const newXP = oldXP + xpGained;
             const newLevel = result.newLevel || oldLevel;
             const leveledUp = result.leveledUp || false;
             
-            // Hitung persentase SETELAH claim
-            // Kalau level up, XP reset ke progress baru di level baru
+            // Hitung new XP in current level
+            let newXPInCurrentLevel;
+            if (leveledUp) {
+                // Jika level up, ambil sisa XP dari backend
+                newXPInCurrentLevel = result.xpProgress || 0;
+            } else {
+                // Jika tidak level up, tambahkan XP gained
+                newXPInCurrentLevel = oldXPInCurrentLevel + xpGained;
+            }
+            
+            const newPercentage = (newXPInCurrentLevel / xpPerLevel) * 100;
+            
+            console.log('XP Calculation:', {
+                oldXP,
+                oldXPInCurrentLevel,
+                xpGained,
+                newXPInCurrentLevel,
+                oldPercentage,
+                newPercentage,
+                leveledUp,
+                oldLevel,
+                newLevel
+            });
+            
+            // Show floating notification LANGSUNG
+            setNotification({
+                show: true,
+                oldXP: oldXPInCurrentLevel,
+                newXP: newXPInCurrentLevel,
+                xpGained,
+                oldLevel,
+                newLevel,
+                leveledUp,
+                oldPercentage,
+                newPercentage,
+                xpPerLevel
+            });
+
+            // Confetti untuk level up
+            if (leveledUp) {
+                setShowConfetti(true);
+                setTimeout(() => setShowConfetti(false), 5000);
+            }
+
+            // Auto-hide notification after 5 seconds
             setTimeout(() => {
-                // Ambil data fresh dari levelInfo yang sudah di-update
-                const currentXPAfterClaim = levelInfo.currentXP;
-                const currentLevelAfterClaim = levelInfo.currentLevel;
-                
-                // XP progress di level saat ini (setelah claim)
-                const newXPInCurrentLevel = currentXPAfterClaim % xpPerLevel || (currentLevelAfterClaim === 1 ? currentXPAfterClaim : (leveledUp ? levelInfo.xpProgress : xpPerLevel));
-                const newPercentage = (newXPInCurrentLevel / xpPerLevel) * 100;
-                
-                console.log('XP Calculation:', {
-                    oldXP,
-                    newXP: currentXPAfterClaim,
-                    xpGained,
-                    oldXPInCurrentLevel,
-                    newXPInCurrentLevel,
-                    oldPercentage,
-                    newPercentage,
-                    leveledUp
-                });
-                
-                // Show floating notification
-                setNotification({
-                    show: true,
-                    oldXP: oldXPInCurrentLevel,
-                    newXP: newXPInCurrentLevel,
-                    xpGained,
-                    oldLevel,
-                    newLevel,
-                    leveledUp,
-                    oldPercentage,
-                    newPercentage,
-                    xpPerLevel
-                });
-
-                // Confetti untuk level up (trigger bersamaan dengan notification)
-                if (leveledUp) {
-                    setShowConfetti(true);
-                    setTimeout(() => setShowConfetti(false), 5000);
-                }
-
-                // Auto-hide notification after 5 seconds
-                setTimeout(() => {
-                    setNotification(prev => ({ ...prev, show: false }));
-                }, 5000);
-            }, 200);
-
-            // ✅ CHECK FOR NEW BADGES AFTER CLAIMING MISSION
-            await checkBadges(user.id);
-
-            // COMMENT OUT MODAL - Pakai floating notification aja
-            // if (leveledUp) {
-            //     setModalInfo({ 
-            //         show: true, 
-            //         type: 'levelup', 
-            //         title: `Level Up ke ${result.newLevel}! 🎉`, 
-            //         message: `Hebat! +${result.xpAdded} XP dan +${result.healthAdded} ❤️ didapatkan!` 
-            //     });
-            // } else {
-            //     setModalInfo({ 
-            //         show: true, 
-            //         type: 'success', 
-            //         title: 'Misi Selesai! ✅', 
-            //         message: `+${result.xpAdded} XP dan +${result.healthAdded} ❤️ didapatkan` 
-            //     });
-            // }
+                setNotification(prev => ({ ...prev, show: false }));
+            }, 5000);
+            
+            // Fetch missions DAN check badges secara parallel (tidak block)
+            Promise.all([
+                fetchMissions(user.id),
+                checkBadges(user.id)
+            ]);
         } else {
             // Error tetap pakai modal
             setModalInfo({ show: true, type: 'error', title: 'Ups!', message: result.message });

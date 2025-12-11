@@ -44,12 +44,27 @@ exports.getUserProfile = async (req, res) => {
         // 2. Statistik Total Emisi
         const [logRows] = await db.execute('SELECT SUM(carbon_produced) as total_emission, COUNT(*) as total_logs FROM daily_logs WHERE user_id = ?', [userId]);
 
-        // 3. Daftar Badge
+        // 3. Semua Badge dengan status unlocked/locked
         const [badgeRows] = await db.execute(`
-            SELECT b.name, b.icon, b.description 
-            FROM user_badges ub 
-            JOIN badges b ON ub.badge_id = b.id 
-            WHERE ub.user_id = ?
+            SELECT 
+                b.id,
+                b.name, 
+                b.icon, 
+                b.description,
+                b.tier,
+                b.category,
+                b.requirement_type,
+                b.requirement_value,
+                CASE 
+                    WHEN ub.id IS NOT NULL THEN TRUE 
+                    ELSE FALSE 
+                END as unlocked,
+                ub.earned_at
+            FROM badges b
+            LEFT JOIN user_badges ub ON b.id = ub.badge_id AND ub.user_id = ?
+            ORDER BY 
+                FIELD(b.tier, 'bronze', 'silver', 'gold', 'diamond', 'legendary'),
+                b.id
         `, [userId]);
 
         res.json({
