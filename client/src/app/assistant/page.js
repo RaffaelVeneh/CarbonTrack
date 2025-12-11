@@ -7,35 +7,35 @@ import { Send, Bot, User, RotateCcw } from 'lucide-react';
 const STORAGE_KEY = 'ecobot_chat_history';
 const DEFAULT_MESSAGE = { role: 'bot', text: 'Halo! Saya EcoBot 🌱. Tanyakan tips hemat listrik, transportasi, atau cara mengurangi sampah plastik!' };
 
-// Helper function untuk load chat dari localStorage
-const loadChatHistory = () => {
-  if (typeof window === 'undefined') return [DEFAULT_MESSAGE]; // SSR safety
-  
-  try {
-    const savedChat = localStorage.getItem(STORAGE_KEY);
-    if (savedChat) {
-      const parsed = JSON.parse(savedChat);
-      if (Array.isArray(parsed) && parsed.length > 0) {
-        return parsed;
-      }
-    }
-  } catch (error) {
-    console.error('Failed to load chat history:', error);
-  }
-  return [DEFAULT_MESSAGE];
-};
-
 export default function AssistantPage() {
   const [input, setInput] = useState('');
-  const [messages, setMessages] = useState(loadChatHistory); // Lazy initialization
+  const [messages, setMessages] = useState([DEFAULT_MESSAGE]);
   const [loading, setLoading] = useState(false);
+  const [isClient, setIsClient] = useState(false); // Track client-side mounting
+
+  // Load chat history HANYA di client-side (after hydration)
+  useEffect(() => {
+    setIsClient(true); // Mark as client-side
+    
+    try {
+      const savedChat = localStorage.getItem(STORAGE_KEY);
+      if (savedChat) {
+        const parsed = JSON.parse(savedChat);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setMessages(parsed);
+        }
+      }
+    } catch (error) {
+      console.error('Failed to load chat history:', error);
+    }
+  }, []); // Run once on mount
 
   // Save chat history ke localStorage setiap kali messages berubah
   useEffect(() => {
-    if (messages.length > 0) {
+    if (isClient && messages.length > 0) {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(messages));
     }
-  }, [messages]);
+  }, [messages, isClient]);
 
   // Handle new chat - reset ke default message
   const handleNewChat = () => {
