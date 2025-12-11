@@ -11,13 +11,16 @@ exports.getActivities = async (req, res) => {
     }
 };
 
-// 2. SIMPAN LOG BARU (LOGIC STREAK JAVASCRIPT ROBUST 🛠️)
+// 2. SIMPAN LOG BARU (LOGIC STREAK BERDASARKAN TANGGAL INPUT REALTIME 🛠️)
 exports.createLog = async (req, res) => {
     try {
         const { user_id, activity_id, input_value, date } = req.body;
 
+        // Dapatkan tanggal server SAAT INI untuk streak
+        const serverToday = new Date().toISOString().split('T')[0];
+
         console.log(`\n--- MULAI INPUT LOG ---`);
-        console.log(`User: ${user_id} | Tanggal Input: ${date}`);
+        console.log(`User: ${user_id} | Tanggal Aktivitas: ${date} | Tanggal Input (Server): ${serverToday}`);
 
         // A. CEK AKTIVITAS
         const [actRows] = await db.execute('SELECT * FROM activities WHERE id = ?', [activity_id]);
@@ -43,44 +46,62 @@ exports.createLog = async (req, res) => {
         );
         console.log('✅ Log harian tersimpan');
 
-        // C. HITUNG STREAK (PAKE JS BIAR AMAN) 🔥
-        const [userRows] = await db.execute('SELECT current_streak, last_log_date FROM users WHERE id = ?', [user_id]);
-        const userData = userRows[0];
+        // C. HITUNG STREAK DARI DAILY_LOGS (BERDASARKAN created_at) 🔥
+        console.log(`\n=== STREAK CALCULATION FROM DAILY_LOGS ===`);
+        
+        // Ambil tanggal unik kapan user input data (dari created_at), diurutkan dari yang terbaru
+        const [logDates] = await db.execute(`
+            SELECT DISTINCT DATE(created_at) as input_date
+            FROM daily_logs
+            WHERE user_id = ?
+            ORDER BY input_date DESC
+        `, [user_id]);
 
-        // Format tanggal ke YYYY-MM-DD (Hilangkan Jam/Menit biar hitungannya pas)
-        const inputDateObj = new Date(date); // Dari frontend
-        const lastLogObj = userData.last_log_date ? new Date(userData.last_log_date) : null; // Dari DB
-
-        // Fungsi helper buat hitung beda hari
-        const getDiffDays = (d1, d2) => {
-            if (!d1 || !d2) return null;
-            const date1 = new Date(d1.toISOString().split('T')[0]);
-            const date2 = new Date(d2.toISOString().split('T')[0]);
-            const diffTime = date1 - date2; 
-            return Math.floor(diffTime / (1000 * 60 * 60 * 24));
-        };
-
-        const diffDays = getDiffDays(inputDateObj, lastLogObj);
-        let newStreak = userData.current_streak || 0;
-
-        console.log(`📅 DB Last Log: ${lastLogObj} | 📅 Input Date: ${inputDateObj}`);
-        console.log(`🔢 Beda Hari: ${diffDays}`);
-
-        if (diffDays === null) {
-            console.log('🚀 First Log Ever -> Streak 1');
-            newStreak = 1;
-        } else if (diffDays === 0) {
-            console.log('⏸️ Log di hari yang sama -> Streak Tetap');
-            // newStreak tetap
-        } else if (diffDays === 1) {
-            console.log('🔥 Log hari berturut-turut -> Streak Nambah!');
-            newStreak += 1;
-        } else if (diffDays > 1) {
-            console.log('💔 Bolos lebih dari sehari -> Streak Reset 1');
-            newStreak = 1;
-        } else {
-            console.log('⚠️ Input tanggal masa lalu -> Streak Tetap');
+        console.log(`📊 Total unique input dates: ${logDates.length}`);
+        
+        if (logDates.length === 0) {
+            console.log('⚠️ No logs found (impossible case)');
+            return res.status(500).json({ message: 'Error calculating streak' });
         }
+
+        // Hitung streak dengan melihat consecutive days
+        let newStreak = 1; // Minimal 1 (karena baru saja input)
+        const today = new Date(serverToday);
+        
+        console.log(`📅 Checking dates for streak calculation:`);
+        logDates.forEach((log, idx) => console.log(`   ${idx}: ${log.input_date}`));
+
+        // Mulai dari tanggal terbaru (index 0)
+        for (let i = 0; i < logDates.length - 1; i++) {
+            const currentDate = new Date(logDates[i].input_date);
+            const nextDate = new Date(logDates[i + 1].input_date);
+            
+            // Hitung selisih hari
+            const diffTime = currentDate.getTime() - nextDate.getTime();
+            const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+            
+            console.log(`   🔍 Compare: ${logDates[i].input_date} vs ${logDates[i + 1].input_date} = ${diffDays} days apart`);
+            
+            if (diffDays === 1) {
+                // Consecutive days! Tambah streak
+                newStreak++;
+                console.log(`   ✅ Consecutive! Streak now: ${newStreak}`);
+            } else {
+                // Not consecutive, stop counting
+                console.log(`   ❌ Gap detected (${diffDays} days). Stop counting.`);
+                break;
+            }
+        }
+
+        console.log(`🔥 Final Calculated Streak: ${newStreak}`);
+        
+        // Ambil last_log_date untuk update (tanggal terbaru dari daily_logs)
+        const latestInputDate = logDates[0].input_date;
+        
+        let shouldUpdateStreak = true; // Selalu update karena kita hitung ulang dari daily_logs
+
+        console.log(`✅ Streak calculation complete!`);
+        console.log(`=========================\n`);
 
         // D. UPDATE USER (Update Streak & Health)
         let healthUpdate = 'island_health'; // Default gak berubah
@@ -90,8 +111,11 @@ exports.createLog = async (req, res) => {
             healthUpdate = `LEAST(100, island_health + ${Math.ceil(carbonSaved * 1)})`;
         }
 
-        // Kita PAKSA update last_log_date ke tanggal input (jika input >= last_log)
-        // Gunakan prepared statement manual biar aman
+        // Update user dengan streak yang baru dihitung dan last_log_date dari tanggal input terbaru
+        console.log(`📝 Update Database:`);
+        console.log(`   - New Streak: ${newStreak}`);
+        console.log(`   - Last Input Date: ${latestInputDate}`);
+        
         const updateQuery = `
             UPDATE users 
             SET 
@@ -101,8 +125,8 @@ exports.createLog = async (req, res) => {
             WHERE id = ?
         `;
 
-        await db.execute(updateQuery, [newStreak, date, user_id]);
-        console.log(`✅ User Updated: Streak ${newStreak}, Date ${date}`);
+        await db.execute(updateQuery, [newStreak, latestInputDate, user_id]);
+        console.log(`✅ User Updated Successfully!\n`);
 
         res.status(201).json({ 
             message: 'Log disimpan!', 
