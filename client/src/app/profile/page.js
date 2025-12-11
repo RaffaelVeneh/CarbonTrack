@@ -1,87 +1,133 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import Sidebar from '@/components/Sidebar';
-import { User, Calendar, Award, Leaf, Zap, Shield } from 'lucide-react';
+import BadgeCollection from '@/components/BadgeCollection';
+import { User, Mail, Calendar, TrendingUp, ShieldCheck, Leaf } from 'lucide-react';
 
 export default function ProfilePage() {
-  const [profile, setProfile] = useState(null);
+  const [user, setUser] = useState(null);
+  const [badges, setBadges] = useState([]); 
+  const [stats, setStats] = useState({ totalLogs: 0, totalEmission: 0, totalSaved: 0 });
   const [loading, setLoading] = useState(true);
-  const API_URL = process.env.NEXT_PUBLIC_API_URL;
+
+  // Fallback URL localhost untuk testing lokal
+  const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
 
   useEffect(() => {
-    const storedUser = JSON.parse(localStorage.getItem('user'));
-    if (storedUser) {
-      fetch(`${API_URL}/users/profile/${storedUser.id}`)
-        .then(res => res.json())
-        .then(data => {
-          setProfile(data);
-          setLoading(false);
-        })
-        .catch(err => console.error(err));
+    // 1. Ambil data awal dari LocalStorage (mungkin data lama)
+    const userData = JSON.parse(localStorage.getItem('user'));
+    if (userData) {
+        setUser(userData);
+        // 2. Panggil data terbaru dari server
+        fetchProfileData(userData.id);
     }
   }, []);
 
-  if (loading || !profile) return (
-    <div className="min-h-screen bg-gray-50 flex">
-        <Sidebar />
-        <main className="flex-1 ml-64 p-8 flex items-center justify-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-500"></div>
-        </main>
-    </div>
-  );
+  const fetchProfileData = async (userId) => {
+    try {
+        setLoading(true);
+        
+        // A. Ambil Semua Badge
+        const resBadges = await fetch(`${API_URL}/badges?userId=${userId}`);
+        const dataBadges = await resBadges.json();
+        
+        if (dataBadges.badges) {
+            setBadges(dataBadges.badges);
+        }
 
-  const { user, stats, badges } = profile;
+        // B. Ambil Statistik Summary
+        const resStats = await fetch(`${API_URL}/logs/summary/${userId}`);
+        const dataStats = await resStats.json();
+        if (resStats.ok) {
+            setStats(dataStats);
+        }
+
+        // C. Ambil Detail User TERBARU (Level, XP, Health)
+        // --- PERBAIKAN DI SINI ---
+        const resUser = await fetch(`${API_URL}/users/profile/${userId}`);
+        const dataUser = await resUser.json();
+
+        if (resUser.ok && dataUser.user) {
+            // Gabungkan data lama dengan data baru
+            const updatedUser = {
+                ...JSON.parse(localStorage.getItem('user')), // Ambil base data
+                ...dataUser.user, // Timpa dengan data baru (level, xp, dll)
+                level: dataUser.user.current_level || dataUser.user.level // Pastikan field level benar
+            };
+
+            // Update State & LocalStorage
+            setUser(updatedUser);
+            localStorage.setItem('user', JSON.stringify(updatedUser));
+        }
+
+    } catch (error) {
+        console.error("Gagal ambil data profil", error);
+    } finally {
+        setLoading(false);
+    }
+  };
+
+  if (!user) return null;
+
+  // Hitung jumlah badge yang sudah didapat
+  const unlockedCount = badges.filter(b => b.unlocked).length;
 
   return (
-    <div className="min-h-screen bg-gray-50 flex">
+    <div className="min-h-screen bg-gray-50 flex font-sans">
       <Sidebar />
+
       <main className="flex-1 ml-64 p-8">
-        
-        {/* --- HEADER PROFIL --- */}
-        <div className="bg-white rounded-3xl p-8 shadow-sm border border-gray-100 mb-8 relative overflow-hidden">
-            {/* Background Hiasan */}
-            <div className="absolute top-0 left-0 w-full h-32 bg-gradient-to-r from-emerald-500 to-teal-400 opacity-90"></div>
+        <h1 className="text-2xl font-bold text-gray-800 mb-6">Profil Saya</h1>
+
+        {/* --- CARD UTAMA USER --- */}
+        <div className="bg-white p-8 rounded-3xl shadow-sm border border-gray-100 mb-8 relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-50 rounded-full blur-3xl -mr-16 -mt-16 opacity-50"></div>
             
-            <div className="relative mt-[30px] flex flex-col md:flex-row items-end md:items-center gap-6">
+            <div className="relative flex flex-col md:flex-row items-center gap-8">
                 {/* Avatar */}
-                <div className="w-32 h-32 bg-white p-1 rounded-full shadow-lg -mb-4 md:mb-0 z-10">
-                    <div className="w-full h-full bg-emerald-100 rounded-full flex items-center justify-center text-5xl font-bold text-emerald-600">
-                        {user.username.charAt(0).toUpperCase()}
-                    </div>
+                <div className="w-28 h-28 bg-gradient-to-br from-emerald-400 to-teal-500 rounded-full flex items-center justify-center text-5xl border-4 border-white shadow-xl text-white">
+                    {user.username.charAt(0).toUpperCase()}
                 </div>
                 
                 {/* Info Text */}
-                <div className="flex-1 pb-3">
-                    <h1 className="text-3xl font-bold text-gray-900">{user.username}</h1>
-                    <div className="flex flex-wrap gap-4 mt-2 text-sm text-gray-500">
-                        <span className="flex items-center gap-1 bg-gray-100 px-3 py-1 rounded-full"><User size={14}/> {user.email}</span>
-                        <span className="flex items-center gap-1 bg-gray-100 px-3 py-1 rounded-full"><Calendar size={14}/> Gabung: {new Date(user.created_at).toLocaleDateString()}</span>
+                <div className="text-center md:text-left flex-1">
+                    <h2 className="text-3xl font-extrabold text-gray-900 mb-2">{user.username}</h2>
+                    <div className="flex flex-wrap justify-center md:justify-start gap-3 text-sm text-gray-500">
+                        <span className="flex items-center gap-1 bg-gray-100 px-3 py-1 rounded-full">
+                            <Mail size={14}/> {user.email}
+                        </span>
+                        {/* Level Label (Sekarang akan update otomatis) */}
+                        <span className="flex items-center gap-1 bg-emerald-100 text-emerald-700 px-3 py-1 rounded-full font-bold">
+                            <TrendingUp size={14}/> Level {user.level || user.current_level || 1}
+                        </span>
                     </div>
                 </div>
 
-                {/* Level Card Besar */}
-                <div className="bg-white p-4 rounded-2xl shadow-md border border-gray-100 text-center min-w-[150px]">
-                    <p className="text-xs text-gray-400 font-bold uppercase tracking-wider">Current Level</p>
-                    <div className="text-4xl font-extrabold text-blue-600 my-1">{user.current_level}</div>
-                    <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-full font-bold">{user.total_xp} XP</span>
+                {/* Mini Stats Grid */}
+                <div className="flex gap-4">
+                    <div className="text-center bg-gray-50 p-4 rounded-2xl border border-gray-100">
+                        <div className="text-2xl font-bold text-emerald-600">{parseFloat(stats.todaySaved || 0).toFixed(2)}</div>
+                        <div className="text-xs text-gray-400 uppercase font-bold tracking-wide">Kg Hemat</div>
+                    </div>
+                    <div className="text-center bg-gray-50 p-4 rounded-2xl border border-gray-100">
+                        <div className="text-2xl font-bold text-gray-800">{unlockedCount}</div>
+                        <div className="text-xs text-gray-400 uppercase font-bold tracking-wide">Badges</div>
+                    </div>
                 </div>
             </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          
-          {/* --- KIRI: STATISTIK --- */}
-          <div className="lg:col-span-1 space-y-6">
-            <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
-                <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
-                    <Zap size={20} className="text-emerald-500 fill-emerald-500"/> Statistik Dampak
-                </h3>
-                <div className="space-y-4">
-                    <StatItem label="Total Jejak Karbon" value={`${parseFloat(stats.totalEmission).toFixed(2)} kg`} icon={<Leaf size={16}/>} />
-                    <StatItem label="Aktivitas Dicatat" value={`${stats.totalLogs} kali`} icon={<Shield size={16}/>} />
-                    <StatItem label="Kesehatan Pulau" value={`${user.island_health}%`} icon={<User size={16}/>} color={user.island_health > 50 ? 'text-green-600' : 'text-red-500'} />
+        {/* --- BAGIAN BADGES --- */}
+        <div className="bg-white p-8 rounded-3xl shadow-sm border border-gray-100">
+            <div className="flex justify-between items-center mb-8 border-b border-gray-100 pb-4">
+                <div>
+                    <h3 className="text-xl font-bold text-gray-800 flex items-center gap-2">
+                        🏆 Koleksi Penghargaan
+                    </h3>
+                    <p className="text-gray-500 text-sm mt-1">Selesaikan misi untuk membuka gembok!</p>
                 </div>
+<<<<<<< HEAD
             </div>
           </div>
 
@@ -157,26 +203,32 @@ export default function ProfilePage() {
                                 </div>
                             </div>
                         ))}
+=======
+                
+                {/* Progress Bar Badge */}
+                <div className="w-1/3 hidden md:block">
+                    <div className="flex justify-between text-xs mb-1 font-bold text-gray-500">
+                        <span>Progress Koleksi</span>
+                        <span>{Math.round((unlockedCount / Math.max(badges.length, 1)) * 100)}%</span>
                     </div>
-                )}
+                    <div className="w-full bg-gray-100 rounded-full h-2.5">
+                        <div 
+                            className="bg-emerald-500 h-2.5 rounded-full transition-all duration-1000" 
+                            style={{ width: `${(unlockedCount / Math.max(badges.length, 1)) * 100}%` }}
+                        ></div>
+>>>>>>> feature/tambah-aktivitas
+                    </div>
+                </div>
             </div>
-          </div>
 
+            {loading ? (
+                <div className="py-20 text-center text-gray-400 animate-pulse">Memuat koleksi badge...</div>
+            ) : (
+                <BadgeCollection badges={badges} />
+            )}
         </div>
+
       </main>
     </div>
   );
-}
-
-// Komponen Kecil untuk Baris Statistik
-function StatItem({ label, value, icon, color = 'text-gray-900' }) {
-    return (
-        <div className="flex justify-between items-center p-3 bg-gray-50 rounded-xl hover:bg-gray-100 transition">
-            <div className="flex items-center gap-3 text-gray-500 text-sm">
-                {icon}
-                <span>{label}</span>
-            </div>
-            <span className={`font-bold ${color}`}>{value}</span>
-        </div>
-    );
 }

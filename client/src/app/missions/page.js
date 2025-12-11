@@ -2,33 +2,28 @@
 
 import { useEffect, useState } from 'react';
 import Sidebar from '@/components/Sidebar';
-import { Target, CheckCircle, Lock, Zap, PartyPopper, TrendingUp } from 'lucide-react';
+import ActivityModal from '@/components/ActivityModal'; // <--- 1. IMPORT MODAL
+import { Target, CheckCircle, Lock, Zap, PartyPopper, TrendingUp, ArrowRight } from 'lucide-react';
 import Confetti from 'react-confetti';
-import { useBadge } from '@/contexts/BadgeContext'; // Import badge context 
+import { useBadge } from '@/contexts/BadgeContext';
 
 export default function MissionsPage() {
   const [missions, setMissions] = useState([]);
   const [levelInfo, setLevelInfo] = useState(null);
   const [user, setUser] = useState(null);
   const [showConfetti, setShowConfetti] = useState(false);
+  
+  // State Modal Info (Untuk Level Up / Sukses Klaim)
   const [modalInfo, setModalInfo] = useState({ show: false, title: '', message: '', type: 'success' });
   
-  // Get badge context
+  // STATE BARU: Untuk Modal Aktivitas (Fitur Lakukan Misi)
+  const [isActivityModalOpen, setIsActivityModalOpen] = useState(false);
+  const [targetActivityId, setTargetActivityId] = useState(null);
+
+  // Badge Context
   const { checkBadges } = useBadge();
   
-  // State untuk floating notification
-  const [notification, setNotification] = useState({
-    show: false,
-    oldXP: 0,
-    newXP: 0,
-    xpGained: 0,
-    oldLevel: 0,
-    newLevel: 0,
-    leveledUp: false,
-    oldPercentage: 0,
-    newPercentage: 0,
-    xpPerLevel: 100 // Default 100 XP per level
-  });
+  const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
 
   useEffect(() => {
     const userData = JSON.parse(localStorage.getItem('user'));
@@ -36,32 +31,27 @@ export default function MissionsPage() {
     if (userData) fetchMissions(userData.id);
   }, []);
 
-  const API_URL = process.env.NEXT_PUBLIC_API_URL;
   const fetchMissions = async (userId) => {
     try {
       const res = await fetch(`${API_URL}/missions/${userId}`);
       const data = await res.json();
-      console.log('Missions data:', data);
       
-      if (data.missions && data.missions.length > 0) {
-        console.log('First mission:', data.missions[0]);
-        setMissions(data.missions);
-      } else {
-        console.warn('No missions returned');
-        setMissions([]);
-      }
-      
-      if (data.levelInfo) {
-        setLevelInfo(data.levelInfo);
-      }
+      if (data.missions) setMissions(data.missions);
+      if (data.levelInfo) setLevelInfo(data.levelInfo);
     } catch (err) { 
       console.error('Fetch missions error:', err);
-      setMissions([]);
     }
+  };
+
+  // --- FUNGSI BARU: TOMBOL LAKUKAN MISI ---
+  const handleDoMission = (requiredActivityId) => {
+    setTargetActivityId(requiredActivityId); // Set ID aktivitas (misal: 101 sepeda)
+    setIsActivityModalOpen(true); // Buka modal
   };
 
   const handleClaim = async (missionId) => {
     try {
+<<<<<<< HEAD
         // Simpan state sebelum claim
         const oldXP = levelInfo.currentXP;
         const oldLevel = levelInfo.currentLevel;
@@ -72,15 +62,17 @@ export default function MissionsPage() {
         const oldXPInCurrentLevel = levelInfo.xpProgress;
         const oldPercentage = (oldXPInCurrentLevel / xpPerLevel) * 100;
 
+=======
+>>>>>>> feature/tambah-aktivitas
         const res = await fetch(`${API_URL}/missions/claim`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ userId: user.id, missionId }),
         });
         const result = await res.json();
-        console.log('Claim result:', result);
 
         if (res.ok) {
+<<<<<<< HEAD
             // Hitung data untuk notification SEBELUM fetch
             const xpGained = result.xpAdded || 0;
             const newLevel = result.newLevel || oldLevel;
@@ -140,8 +132,37 @@ export default function MissionsPage() {
                 fetchMissions(user.id),
                 checkBadges(user.id)
             ]);
+=======
+            // Refresh Data
+            await fetchMissions(user.id);
+            await checkBadges(user.id);
+            
+            const leveledUp = result.leveledUp || false;
+
+            // --- LOGIKA POPUP ANIMASI (DIKEMBALIKAN) ---
+            if (leveledUp) {
+                // Kalo Naik Level: Tampilkan Confetti & Modal Besar Emas
+                setShowConfetti(true);
+                setModalInfo({ 
+                    show: true, 
+                    type: 'levelup', 
+                    title: `NAIK LEVEL ${result.newLevel}! 🎉`, 
+                    message: `Luar biasa! Kamu mendapatkan +${result.xpAdded} XP dan +${result.healthAdded} ❤️ Health.` 
+                });
+                // Matikan confetti otomatis
+                setTimeout(() => setShowConfetti(false), 6000);
+            } else {
+                // Kalo Cuma Klaim Biasa: Modal Sukses Hijau
+                setModalInfo({ 
+                    show: true, 
+                    type: 'success', 
+                    title: 'Misi Selesai! ✅', 
+                    message: `Mantap! +${result.xpAdded} XP berhasil didapatkan.` 
+                });
+            }
+>>>>>>> feature/tambah-aktivitas
         } else {
-            // Error tetap pakai modal
+            // Error
             setModalInfo({ show: true, type: 'error', title: 'Ups!', message: result.message });
         }
     } catch (error) { 
@@ -153,116 +174,28 @@ export default function MissionsPage() {
 
   if (!user || !levelInfo) return null;
 
-  // Hitung persentase XP untuk progress bar
+  // Hitung persentase XP
   const xpPercentage = (levelInfo.xpProgress / levelInfo.xpPerLevel) * 100;
 
   return (
-    <div className="min-h-screen bg-gray-50 flex">
+    <div className="min-h-screen bg-gray-50 flex font-sans">
       <Sidebar />
+      
+      {/* Animasi Confetti */}
       {showConfetti && <Confetti recycle={false} numberOfPieces={500} />}
 
-      {/* === FLOATING XP NOTIFICATION === */}
-      <div className={`fixed top-4 left-1/2 -translate-x-1/2 z-50 transition-all duration-500 ${
-        notification.show ? 'translate-y-0 opacity-100' : '-translate-y-full opacity-0 pointer-events-none'
-      }`}>
-        <div className="bg-gradient-to-r from-emerald-600 to-teal-500 rounded-2xl p-6 shadow-2xl text-white min-w-[400px] border-4 border-white relative overflow-hidden">
-          
-          {/* Celebration Confetti Background (untuk level up) */}
-          {notification.leveledUp && (
-            <div className="absolute inset-0 pointer-events-none overflow-hidden">
-              {/* Falling confetti emojis */}
-              {[...Array(20)].map((_, i) => (
-                <span
-                  key={i}
-                  className="absolute text-2xl animate-confetti-fall"
-                  style={{
-                    left: `${Math.random() * 100}%`,
-                    top: `-${Math.random() * 20}px`,
-                    animationDelay: `${Math.random() * 2}s`,
-                    animationDuration: `${2 + Math.random() * 2}s`
-                  }}
-                >
-                  {['🎉', '🎊', '⭐', '✨', '🌟', '💚', '🏆'][Math.floor(Math.random() * 7)]}
-                </span>
-              ))}
-            </div>
-          )}
-
-          {/* Close button */}
-          <button
-            onClick={() => setNotification(prev => ({ ...prev, show: false }))}
-            className="absolute top-2 right-2 bg-white/20 hover:bg-white/30 rounded-full w-6 h-6 flex items-center justify-center transition-colors z-10"
-            title="Tutup"
-          >
-            <span className="text-white text-sm">✕</span>
-          </button>
-
-          {/* Header dengan icon */}
-          <div className="flex items-center gap-3 mb-4 relative z-10">
-            <div className={`p-2 rounded-full ${notification.leveledUp ? 'bg-yellow-400 animate-bounce' : 'bg-white/20'}`}>
-              {notification.leveledUp ? (
-                <PartyPopper size={24} className="text-emerald-600" />
-              ) : (
-                <TrendingUp size={24} />
-              )}
-            </div>
-            <div>
-              <h3 className="font-bold text-lg">
-                {notification.leveledUp ? `🎉 Level Up ke ${notification.newLevel}!` : '⚡ XP Bertambah!'}
-              </h3>
-              <p className="text-sm opacity-90">+{notification.xpGained} XP didapatkan</p>
-            </div>
-          </div>
-
-          {/* Level Info */}
-          <div className="flex justify-between items-center mb-3 relative z-10">
-            <div>
-              <p className="text-sm opacity-80">Level</p>
-              <p className="text-2xl font-bold">
-                {notification.leveledUp ? (
-                  <span className="animate-pulse">{notification.oldLevel} → {notification.newLevel}</span>
-                ) : (
-                  notification.oldLevel
-                )}
-              </p>
-            </div>
-            <div className="text-right">
-              <p className="text-sm opacity-80">XP di Level Ini</p>
-              <p className="text-xl font-bold">
-                {notification.leveledUp ? (
-                  <span className="text-yellow-300 animate-pulse">LEVEL UP!</span>
-                ) : (
-                  `${Math.round(notification.newXP)} / ${notification.xpPerLevel}`
-                )}
-              </p>
-            </div>
-          </div>
-
-          {/* Animated Progress Bar */}
-          <div className="bg-black/20 rounded-full h-4 overflow-hidden relative z-10">
-            <div 
-              className="bg-yellow-400 h-full transition-all duration-1000 ease-out absolute left-0 top-0"
-              style={{ 
-                width: `${notification.show ? (notification.leveledUp ? 100 : notification.newPercentage) : notification.oldPercentage}%` 
-              }}
-            >
-              {/* Shimmer effect */}
-              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-shimmer"></div>
-            </div>
-          </div>
-          
-          <p className="text-xs text-center mt-2 opacity-75 relative z-10">
-            {notification.leveledUp 
-              ? '🎊 Selamat! Misi baru terbuka!' 
-              : `${Math.round(notification.newPercentage)}% progress • ${notification.xpPerLevel - Math.round(notification.newXP)} XP lagi ke Level ${notification.oldLevel + 1}`
-            }
-          </p>
-        </div>
-      </div>
+      {/* --- RENDER MODAL AKTIVITAS (FITUR BARU) --- */}
+      <ActivityModal 
+        isOpen={isActivityModalOpen} 
+        onClose={() => setIsActivityModalOpen(false)} 
+        userId={user.id}
+        onRefresh={() => fetchMissions(user.id)} // Refresh misi setelah log disimpan
+        initialActivityId={targetActivityId} // Kirim ID biar otomatis terpilih
+      />
 
       <main className="flex-1 ml-64 p-8">
         
-        {/* --- LEVEL & XP PROGRESS --- */}
+        {/* --- HEADER LEVEL PROGRESS --- */}
         <div className="bg-gradient-to-r from-emerald-600 to-teal-500 rounded-2xl p-8 mb-8 text-white shadow-lg relative overflow-hidden">
             <div className="relative z-10 flex justify-between items-end">
                 <div>
@@ -285,10 +218,10 @@ export default function MissionsPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {missions.map((mission) => (
             <div key={mission.id} className={`p-6 rounded-2xl border relative overflow-hidden transition-all 
-                ${mission.is_locked ? 'bg-gray-100 border-gray-200 opacity-70' : 'bg-white border-gray-100 shadow-sm'}
+                ${mission.is_locked ? 'bg-gray-100 border-gray-200 opacity-70' : 'bg-white border-gray-100 shadow-sm hover:shadow-md'}
             `}>
               
-              {/* Jika Locked, tampilkan overlay gembok */}
+              {/* Overlay Locked */}
               {mission.is_locked && (
                   <div className="absolute inset-0 bg-gray-200/50 backdrop-blur-[1px] flex items-center justify-center z-10">
                       <div className="bg-white p-3 rounded-full shadow-md flex items-center gap-2 px-6">
@@ -298,6 +231,7 @@ export default function MissionsPage() {
                   </div>
               )}
 
+              {/* Header Card */}
               <div className="flex justify-between items-start mb-4">
                 <div className="flex items-center gap-3">
                   <div className="text-3xl">{mission.icon || '🎯'}</div>
@@ -305,90 +239,106 @@ export default function MissionsPage() {
                     <span className={`text-xs font-bold px-2 py-1 rounded-md ${
                       mission.difficulty === 'easy' ? 'bg-green-100 text-green-700' :
                       mission.difficulty === 'medium' ? 'bg-yellow-100 text-yellow-700' :
-                      mission.difficulty === 'hard' ? 'bg-orange-100 text-orange-700' :
                       'bg-red-100 text-red-700'
                     }`}>
-                      {mission.difficulty === 'easy' ? '⭐ Mudah' :
-                       mission.difficulty === 'medium' ? '⭐⭐ Sedang' :
-                       mission.difficulty === 'hard' ? '⭐⭐⭐ Sulit' :
-                       '⭐⭐⭐⭐ Expert'}
+                      {mission.difficulty === 'easy' ? 'Mudah' : 
+                       mission.difficulty === 'medium' ? 'Sedang' : 'Sulit'}
                     </span>
                   </div>
                 </div>
                 <div className="text-right">
                   <span className="bg-blue-100 text-blue-700 text-xs font-bold px-3 py-1 rounded-full">+{mission.xp_reward} XP</span>
-                  <div className="text-xs text-green-600 font-semibold mt-1">+{mission.health_reward} ❤️</div>
                 </div>
               </div>
               
               <h3 className="text-xl font-bold text-gray-800 mb-2">{mission.title}</h3>
               <p className="text-gray-500 text-sm mb-4">{mission.description}</p>
               
-              {/* Progress Bar dan Status */}
+              {/* Progress Bar */}
               {!mission.is_claimed && !mission.is_locked && (
                 <div className="mb-4">
-                  {/* Progress Bar */}
-                  <div className="mb-2">
-                    <div className="flex justify-between text-xs mb-1">
-                      <span className="text-gray-600 font-medium">Progress</span>
-                      <span className={`font-bold ${mission.is_completed ? 'text-green-600' : 'text-orange-600'}`}>
-                        {mission.progress_text || `${mission.progress} / ${mission.target_value}`}
-                      </span>
-                    </div>
-                    <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
-                      <div 
-                        className={`h-full transition-all duration-500 ${mission.is_completed ? 'bg-green-500' : 'bg-orange-400'}`}
-                        style={{ width: `${Math.min(100, (mission.progress / mission.target_value) * 100)}%` }}
-                      ></div>
-                    </div>
+                  <div className="flex justify-between text-xs mb-1">
+                    <span className="text-gray-600 font-medium">Progress</span>
+                    <span className={`font-bold ${mission.is_completed ? 'text-green-600' : 'text-orange-600'}`}>
+                      {mission.progress_text || `${mission.progress} / ${mission.target_value}`}
+                    </span>
+                  </div>
+                  <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
+                    <div 
+                      className={`h-full transition-all duration-500 ${mission.is_completed ? 'bg-green-500' : 'bg-orange-400'}`}
+                      style={{ width: `${Math.min(100, (mission.progress / mission.target_value) * 100)}%` }}
+                    ></div>
                   </div>
                   
-                  {/* Status Badge */}
                   {!mission.is_completed && (
-                    <div className="text-xs font-semibold px-3 py-1.5 bg-orange-50 text-orange-700 rounded-lg inline-block border border-orange-100">
+                    <div className="text-xs font-semibold px-3 py-1.5 bg-orange-50 text-orange-700 rounded-lg inline-block border border-orange-100 mt-2">
                       ⚠️ Syarat belum terpenuhi
-                    </div>
-                  )}
-                  {mission.is_completed && (
-                    <div className="text-xs font-semibold px-3 py-1.5 bg-green-50 text-green-700 rounded-lg inline-block border border-green-100">
-                      ✅ Siap diklaim!
                     </div>
                   )}
                 </div>
               )}
 
-              <button 
-                onClick={() => mission.is_completable && handleClaim(mission.id)} 
-                disabled={!mission.is_completable || mission.is_claimed || mission.is_locked} 
-                className={`w-full py-3 rounded-xl font-bold flex items-center justify-center gap-2 transition 
-                    ${mission.is_claimed 
-                        ? 'bg-green-100 text-green-700 cursor-default' 
-                        : mission.is_completable 
-                            ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg hover:shadow-xl transform hover:scale-105' 
-                            : 'bg-gray-200 text-gray-500 cursor-not-allowed'
-                    }`}
-              >
-                {mission.is_claimed 
-                  ? <><CheckCircle size={20} /> Sudah Diklaim</> 
-                  : mission.is_completable 
-                    ? <><Zap size={20} /> Klaim Sekarang!</>
-                    : 'Syarat Belum Terpenuhi'
-                }
-              </button>
+              {/* --- ACTION BUTTONS (LOGIKA BARU) --- */}
+              <div className="flex gap-2">
+                  
+                  {/* KONDISI 1: SUDAH SELESAI -> TOMBOL KLAIM */}
+                  {mission.is_completable && !mission.is_claimed && (
+                      <button 
+                        onClick={() => handleClaim(mission.id)} 
+                        className="w-full py-3 rounded-xl font-bold flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg animate-pulse"
+                      >
+                        <Zap size={18} /> Klaim Reward!
+                      </button>
+                  )}
+
+                  {/* KONDISI 2: BELUM SELESAI -> TOMBOL LAKUKAN MISI */}
+                  {!mission.is_completable && !mission.is_claimed && !mission.is_locked && (
+                      <button 
+                        onClick={() => handleDoMission(mission.required_activity_id)} 
+                        className="w-full py-3 rounded-xl font-bold flex items-center justify-center gap-2 bg-blue-50 text-blue-600 hover:bg-blue-100 border border-blue-200 transition"
+                      >
+                        Lakukan Misi <ArrowRight size={18} />
+                      </button>
+                  )}
+
+                  {/* KONDISI 3: SUDAH DIKLAIM */}
+                  {mission.is_claimed && (
+                      <button disabled className="w-full py-3 rounded-xl font-bold flex items-center justify-center gap-2 bg-green-100 text-green-700 cursor-default border border-green-200">
+                        <CheckCircle size={18} /> Sudah Diklaim
+                      </button>
+                  )}
+              </div>
+
             </div>
           ))}
         </div>
 
-        {/* --- MODAL POPUP --- */}
+        {/* --- MODAL POPUP (LEVEL UP / SUCCESS) --- */}
         {modalInfo.show && (
-            <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-                <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 text-center animate-in fade-in zoom-in duration-300">
-                    <div className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 ${modalInfo.type === 'error' ? 'bg-red-100 text-red-600' : 'bg-green-100 text-green-600'}`}>
-                        {modalInfo.type === 'error' ? <Zap /> : <CheckCircle />}
+            <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[999] flex items-center justify-center p-4 animate-in fade-in duration-300">
+                <div className={`bg-white rounded-3xl shadow-2xl w-full max-w-sm p-8 text-center transform transition-all scale-100 border-4 
+                    ${modalInfo.type === 'levelup' ? 'border-yellow-200' : 
+                      modalInfo.type === 'error' ? 'border-red-200' : 'border-emerald-100'}`}>
+                    
+                    {/* Icon Header */}
+                    <div className={`w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg animate-bounce
+                        ${modalInfo.type === 'levelup' ? 'bg-yellow-100 text-yellow-600' : 
+                          modalInfo.type === 'error' ? 'bg-red-100 text-red-600' : 'bg-green-100 text-green-600'}`}>
+                        {modalInfo.type === 'levelup' ? <PartyPopper size={40} /> : 
+                         modalInfo.type === 'error' ? <Zap size={40} /> : <CheckCircle size={40} />}
                     </div>
-                    <h3 className="text-xl font-bold text-gray-900 mb-2">{modalInfo.title}</h3>
-                    <p className="text-gray-500 mb-6 text-sm">{modalInfo.message}</p>
-                    <button onClick={closeModal} className="w-full bg-gray-900 text-white font-bold py-2.5 rounded-xl">Tutup</button>
+
+                    <h3 className="text-2xl font-extrabold text-gray-900 mb-2">{modalInfo.title}</h3>
+                    <p className="text-gray-500 mb-8 leading-relaxed">{modalInfo.message}</p>
+
+                    <button 
+                        onClick={closeModal} 
+                        className={`w-full font-bold py-3.5 rounded-xl text-white shadow-lg transition-transform active:scale-95
+                            ${modalInfo.type === 'levelup' ? 'bg-yellow-500 hover:bg-yellow-600 shadow-yellow-200' : 
+                              modalInfo.type === 'error' ? 'bg-gray-800' : 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-200'}`}
+                    >
+                        {modalInfo.type === 'levelup' ? 'Keren Banget!' : 'Mantap!'}
+                    </button>
                 </div>
             </div>
         )}
