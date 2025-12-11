@@ -21,6 +21,8 @@ const TIER_COLORS_POPUP = {
 
 export default function BadgeCollection({ badges }) {
   const [hoveredBadge, setHoveredBadge] = useState(null);
+  const [tooltipPosition, setTooltipPosition] = useState({ top: 0, left: 0 });
+  
   if (!badges || badges.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-12 text-gray-400 border-2 border-dashed border-gray-200 rounded-2xl">
@@ -30,17 +32,31 @@ export default function BadgeCollection({ badges }) {
     );
   }
 
+  const handleMouseEnter = (badge, event) => {
+    if (!badge.unlocked) return;
+    
+    const rect = event.currentTarget.getBoundingClientRect();
+    setTooltipPosition({
+      top: rect.top - 10,
+      left: rect.left + rect.width / 2
+    });
+    setHoveredBadge(badge.id);
+  };
+
+  const currentBadge = badges.find(b => b.id === hoveredBadge);
+
   return (
-    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+    <div className="relative">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 overflow-visible">
       {badges.map((badge) => (
         <div 
           key={badge.id}
-          className={`relative group p-5 rounded-2xl border-2 transition-all duration-300
+          className={`relative group p-5 rounded-2xl border-2 transition-all duration-300 overflow-visible
             ${badge.unlocked 
                 ? 'bg-white border-emerald-100 shadow-sm hover:shadow-md hover:border-emerald-400 hover:-translate-y-1 cursor-pointer' 
                 : 'bg-gray-50 border-gray-200' 
             }`}
-          onMouseEnter={() => badge.unlocked && setHoveredBadge(badge.id)}
+          onMouseEnter={(e) => handleMouseEnter(badge, e)}
           onMouseLeave={() => setHoveredBadge(null)}
         >
           
@@ -91,25 +107,33 @@ export default function BadgeCollection({ badges }) {
 
           </div>
 
-          {/* TOOLTIP POPUP - Muncul saat hover pada badge yang sudah unlock */}
-          {badge.unlocked && hoveredBadge === badge.id ? (
-            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 z-50 animate-in fade-in slide-in-from-bottom-2 duration-200">
-              <div className={`bg-gradient-to-r ${TIER_COLORS_POPUP[badge.tier] || 'from-gray-500 to-gray-600'} text-white px-4 py-3 rounded-xl shadow-2xl min-w-[250px] max-w-[300px]`}>
-                <div className="flex items-start gap-2 mb-2">
-                  <CheckCircle size={18} className="flex-shrink-0 mt-0.5" />
-                  <div>
-                    <p className="font-bold text-sm mb-1">Syarat Pencapaian:</p>
-                    <p className="text-xs leading-relaxed opacity-95">{badge.description}</p>
-                  </div>
-                </div>
-                {/* Arrow */}
-                <div className={`absolute top-full left-1/2 -translate-x-1/2 -mt-1 w-0 h-0 border-l-8 border-r-8 border-t-8 border-transparent ${badge.tier === 'bronze' ? 'border-t-orange-600' : badge.tier === 'silver' ? 'border-t-slate-600' : badge.tier === 'gold' ? 'border-t-yellow-600' : badge.tier === 'diamond' ? 'border-t-cyan-600' : 'border-t-purple-600'}`}></div>
-              </div>
-            </div>
-          ) : null}
-
         </div>
       ))}
+      </div>
+
+      {/* TOOLTIP POPUP - Fixed position di luar grid untuk z-index tertinggi */}
+      {hoveredBadge && currentBadge && (
+        <div 
+          className="fixed z-[99999] pointer-events-none animate-in fade-in slide-in-from-bottom-2 duration-200"
+          style={{
+            top: `${tooltipPosition.top}px`,
+            left: `${tooltipPosition.left}px`,
+            transform: 'translate(-50%, -100%)'
+          }}
+        >
+          <div className={`bg-gradient-to-r ${TIER_COLORS_POPUP[currentBadge.tier] || 'from-gray-500 to-gray-600'} text-white px-4 py-3 rounded-xl shadow-2xl min-w-[250px] max-w-[300px]`}>
+            <div className="flex items-start gap-2 mb-2">
+              <CheckCircle size={18} className="flex-shrink-0 mt-0.5" />
+              <div>
+                <p className="font-bold text-sm mb-1">Syarat Pencapaian:</p>
+                <p className="text-xs leading-relaxed opacity-95">{currentBadge.description}</p>
+              </div>
+            </div>
+            {/* Arrow */}
+            <div className={`absolute top-full left-1/2 -translate-x-1/2 -mt-1 w-0 h-0 border-l-8 border-r-8 border-t-8 border-transparent ${currentBadge.tier === 'bronze' ? 'border-t-orange-600' : currentBadge.tier === 'silver' ? 'border-t-slate-600' : currentBadge.tier === 'gold' ? 'border-t-yellow-600' : currentBadge.tier === 'diamond' ? 'border-t-cyan-600' : 'border-t-purple-600'}`}></div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

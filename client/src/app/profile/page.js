@@ -119,7 +119,7 @@ export default function ProfilePage() {
         </div>
 
         {/* --- BAGIAN BADGES --- */}
-        <div className="bg-white p-8 rounded-3xl shadow-sm border border-gray-100">
+        <div className="bg-white p-8 rounded-3xl shadow-sm border border-gray-100 overflow-visible">
             <div className="flex justify-between items-center mb-8 border-b border-gray-100 pb-4">
                 <div>
                     <h3 className="text-xl font-bold text-gray-800 flex items-center gap-2">
