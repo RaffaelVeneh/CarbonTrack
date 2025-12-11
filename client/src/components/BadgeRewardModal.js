@@ -12,7 +12,7 @@ const TIER_COLORS = {
   legendary: { bg: 'from-purple-500 to-pink-600', border: 'border-purple-300', glow: 'shadow-purple-500/50' }
 };
 
-// Tier labels
+
 const TIER_LABELS = {
   bronze: '🥉 Bronze',
   silver: '🥈 Silver', 

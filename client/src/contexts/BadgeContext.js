@@ -8,17 +8,18 @@ export function BadgeProvider({ children }) {
   const [currentBadge, setCurrentBadge] = useState(null);
   const [badgeQueue, setBadgeQueue] = useState([]);
 
-  // Show badge modal
+  // --- PERBAIKAN URL ---
+  // Gunakan variabel environment, kalau tidak ada baru pakai localhost
+  const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
+
   const showBadge = useCallback((badge) => {
     if (currentBadge) {
-      // Jika sudah ada badge yang tampil, queue badge baru
       setBadgeQueue(prev => [...prev, badge]);
     } else {
       setCurrentBadge(badge);
     }
   }, [currentBadge]);
 
-  // Show multiple badges (queue them)
   const showBadges = useCallback((badges) => {
     if (badges && badges.length > 0) {
       if (currentBadge) {
@@ -32,10 +33,8 @@ export function BadgeProvider({ children }) {
     }
   }, [currentBadge]);
 
-  // Close current badge and show next in queue
   const handleClose = useCallback(() => {
     if (badgeQueue.length > 0) {
-      // Show next badge from queue
       setCurrentBadge(badgeQueue[0]);
       setBadgeQueue(prev => prev.slice(1));
     } else {
@@ -43,10 +42,11 @@ export function BadgeProvider({ children }) {
     }
   }, [badgeQueue]);
 
-  // Check for new badges (dipanggil setelah mission claim atau activity log)
+  // Check for new badges
   const checkBadges = useCallback(async (userId) => {
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/badges/check`, {
+      // Gunakan API_URL yang sudah didefinisikan di atas
+      const response = await fetch(`${API_URL}/badges/check`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userId })
@@ -63,7 +63,7 @@ export function BadgeProvider({ children }) {
       console.error('❌ Error checking badges:', error);
       return { hasNewBadges: false, newBadges: [] };
     }
-  }, [showBadges]);
+  }, [showBadges, API_URL]); // Masukkan API_URL ke dependency
 
   return (
     <BadgeContext.Provider value={{ showBadge, showBadges, checkBadges }}>
@@ -73,7 +73,6 @@ export function BadgeProvider({ children }) {
   );
 }
 
-// Hook untuk akses badge context
 export function useBadge() {
   const context = useContext(BadgeContext);
   if (!context) {
