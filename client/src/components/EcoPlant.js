@@ -53,14 +53,10 @@ export default function EcoPlant({ completedCount }) {
         {/* Kanvas SVG Ukuran 200x200 (Agar proporsional) */}
         <svg viewBox="0 0 200 200" className="w-48 h-48 drop-shadow-lg transition-all duration-500">
             
-            {/* 1. TANAH (Selalu Ada) */}
+            {/* 1. TANAH (Paling Belakang - Selalu Ada) */}
             <ellipse cx="100" cy="160" rx="35" ry="10" fill="#5D4037" />
 
-            {/* 2. POT (Selalu Ada - Di Depan Tanah) */}
-            <path d="M70,160 L130,160 L120,190 L80,190 Z" fill="#D84315" /> {/* Badan Bawah */}
-            <rect x="65" y="150" width="70" height="15" rx="3" fill="#BF360C" /> {/* Bibir Pot */}
-
-            {/* 3. LOGIKA TUMBUH (Dibalik Bibir Pot / Layering) */}
+            {/* 2. LOGIKA TUMBUH (Layer Tengah - Semua Tanaman) */}
             
             {/* STAGE 1: Benih Kecil (Muncul sedikit) */}
             <g className={`transition-all duration-700 ease-out origin-bottom ${stage >= 1 ? 'scale-100 opacity-100' : 'scale-0 opacity-0'}`} transform="translate(100, 155)">
@@ -89,7 +85,7 @@ export default function EcoPlant({ completedCount }) {
                 <circle cx="0" cy="-85" r="8" fill="#86EFAC" />
             </g>
 
-            {/* STAGE 4: BUNGA MEKAR (Layer Paling Atas) */}
+            {/* STAGE 4: BUNGA MEKAR */}
             <g className={`transition-all duration-1000 ease-elastic delay-300 ${stage >= 4 ? 'scale-100 opacity-100' : 'scale-0 opacity-0'}`} transform="translate(100, 70)">
                 {/* Kelopak Bunga Matahari (Berputar pelan) */}
                 <g className="animate-spin-slow origin-center">
@@ -108,6 +104,10 @@ export default function EcoPlant({ completedCount }) {
                 {/* Efek Kilau */}
                 <circle cx="5" cy="-5" r="3" fill="white" opacity="0.3" />
             </g>
+
+            {/* 3. POT (Paling Depan - Selalu Ada) */}
+            <path d="M70,160 L130,160 L120,190 L80,190 Z" fill="#D84315" /> {/* Badan Bawah */}
+            <rect x="65" y="150" width="70" height="15" rx="3" fill="#BF360C" /> {/* Bibir Pot */}
 
         </svg>
 

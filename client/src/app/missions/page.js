@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import Sidebar from '@/components/Sidebar';
 import ActivityModal from '@/components/ActivityModal';
+import NotificationDropdown from '@/components/NotificationDropdown';
 import EcoPlant from '@/components/EcoPlant'; // <--- 1. IMPORT ECO PLANT
 import { Target, CheckCircle, Lock, Zap, PartyPopper, TrendingUp, ArrowRight } from 'lucide-react';
 import Confetti from 'react-confetti';
@@ -14,7 +15,7 @@ export default function MissionsPage() {
   const [user, setUser] = useState(null);
   const [showConfetti, setShowConfetti] = useState(false);
   
-  const [modalInfo, setModalInfo] = useState({ show: false, title: '', message: '', type: 'success' });
+  const [notification, setNotification] = useState(null);
   const [isActivityModalOpen, setIsActivityModalOpen] = useState(false);
   const [targetActivityId, setTargetActivityId] = useState(null);
 
@@ -54,37 +55,49 @@ export default function MissionsPage() {
         const result = await res.json();
 
         if (res.ok) {
+            const oldLevelInfo = { ...levelInfo };
             await fetchMissions(user.id);
             await checkBadges(user.id);
             
             const leveledUp = result.leveledUp || false;
 
             if (leveledUp) {
+                // Trigger confetti untuk level up
                 setShowConfetti(true);
-                setModalInfo({ 
-                    show: true, 
-                    type: 'levelup', 
-                    title: `NAIK LEVEL ${result.newLevel}! 🎉`, 
-                    message: `Luar biasa! Kamu mendapatkan +${result.xpAdded} XP.` 
+                setNotification({
+                    type: 'levelup',
+                    message: 'Luar biasa! Kamu berhasil naik level! 🎉',
+                    xpGained: result.xpAdded,
+                    newLevel: result.newLevel
                 });
-                setTimeout(() => setShowConfetti(false), 6000);
+                setTimeout(() => setShowConfetti(false), 5000);
             } else {
-                setModalInfo({ 
-                    show: true, 
-                    type: 'success', 
-                    title: 'Misi Selesai! ✅', 
-                    message: `Mantap! +${result.xpAdded} XP berhasil didapatkan. Cek tanamanmu!` 
+                // Tampilkan notifikasi XP dengan progress bar
+                setNotification({
+                    type: 'success',
+                    message: `Mantap! Misi selesai. Lihat progress XP-mu!`,
+                    xpGained: result.xpAdded,
+                    currentXP: result.currentXP || (oldLevelInfo.xpProgress + result.xpAdded),
+                    maxXP: result.xpPerLevel || oldLevelInfo.xpPerLevel,
+                    xpPercentage: result.xpPercentage || ((oldLevelInfo.xpProgress + result.xpAdded) / oldLevelInfo.xpPerLevel) * 100
                 });
             }
         } else {
-            setModalInfo({ show: true, type: 'error', title: 'Ups!', message: result.message });
+            setNotification({ 
+                type: 'error', 
+                message: result.message || 'Terjadi kesalahan saat mengklaim misi.'
+            });
         }
     } catch (error) { 
-        console.error(error); 
+        console.error(error);
+        setNotification({ 
+            type: 'error', 
+            message: 'Gagal mengklaim misi. Silakan coba lagi.'
+        });
     }
   };
 
-  const closeModal = () => setModalInfo({ ...modalInfo, show: false });
+  const closeNotification = () => setNotification(null);
 
   if (!user || !levelInfo) return null;
 
@@ -97,7 +110,12 @@ export default function MissionsPage() {
     <div className="min-h-screen bg-gray-50 flex font-sans">
       <Sidebar />
       
-      {showConfetti && <Confetti recycle={false} numberOfPieces={500} />}
+      {showConfetti && <Confetti recycle={false} numberOfPieces={800} gravity={0.3} />}
+
+      <NotificationDropdown 
+        notification={notification}
+        onClose={closeNotification}
+      />
 
       <ActivityModal 
         isOpen={isActivityModalOpen} 
@@ -227,30 +245,6 @@ export default function MissionsPage() {
             </div>
           ))}
         </div>
-
-        {modalInfo.show && (
-            <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[999] flex items-center justify-center p-4 animate-in fade-in duration-300">
-                <div className={`bg-white rounded-3xl shadow-2xl w-full max-w-sm p-8 text-center transform transition-all scale-100 border-4 
-                    ${modalInfo.type === 'levelup' ? 'border-yellow-200' : 'border-emerald-100'}`}>
-                    <div className={`w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg animate-bounce
-                        ${modalInfo.type === 'levelup' ? 'bg-yellow-100 text-yellow-600' : 
-                          modalInfo.type === 'error' ? 'bg-red-100 text-red-600' : 'bg-green-100 text-green-600'}`}>
-                        {modalInfo.type === 'levelup' ? <PartyPopper size={40} /> : 
-                         modalInfo.type === 'error' ? <Zap size={40} /> : <CheckCircle size={40} />}
-                    </div>
-                    <h3 className="text-2xl font-extrabold text-gray-900 mb-2">{modalInfo.title}</h3>
-                    <p className="text-gray-500 mb-8 leading-relaxed">{modalInfo.message}</p>
-                    <button 
-                        onClick={closeModal} 
-                        className={`w-full font-bold py-3.5 rounded-xl text-white shadow-lg transition-transform active:scale-95
-                            ${modalInfo.type === 'levelup' ? 'bg-yellow-500 hover:bg-yellow-600 shadow-yellow-200' : 
-                              'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-200'}`}
-                    >
-                        {modalInfo.type === 'levelup' ? 'Keren Banget!' : 'Mantap!'}
-                    </button>
-                </div>
-            </div>
-        )}
 
       </main>
     </div>

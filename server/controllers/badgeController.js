@@ -60,7 +60,7 @@ const checkAndAwardBadges = async (req, res) => {
             LEFT JOIN user_missions um ON u.id = um.user_id
             LEFT JOIN daily_logs dl ON u.id = dl.user_id
             WHERE u.id = ?
-            GROUP BY u.id
+            GROUP BY u.id, u.current_level, u.total_xp, u.island_health, u.created_at
         `, [userId]);
         
         console.log('📊 User stats:', userStats[0]);
@@ -136,23 +136,27 @@ const checkAndAwardBadges = async (req, res) => {
             const reqType = badge.requirement_type; // 'xp', 'level', 'saving', 'activity', 'streak'
 
             // --- DEBUG LOGIC (Biar ketahuan kalau salah) ---
-            // console.log(`Checking Badge: ${badge.name} (${reqType} >= ${reqVal})`);
+            console.log(`🔍 Checking Badge: ${badge.name} (${reqType} >= ${reqVal}) | Current: ${stats.level}`);
 
             switch (reqType) {
                 case 'level':
-                    if (stats.current_level >= reqVal) unlocked = true;
+                    if (stats.level >= reqVal) unlocked = true;
+                    console.log(`   Level check: ${stats.level} >= ${reqVal} = ${unlocked}`);
                     break;
 
                 case 'xp': // Sesuaikan dengan db (bukan total_xp)
                     unlocked = stats.total_xp >= badge.requirement_value;
+                    console.log(`   XP check: ${stats.total_xp} >= ${badge.requirement_value} = ${unlocked}`);
                     break;
 
                 case 'activity': // Sesuaikan dengan db (bukan missions_completed)
                     unlocked = stats.missions_completed >= badge.requirement_value;
+                    console.log(`   Activity check: ${stats.missions_completed} >= ${badge.requirement_value} = ${unlocked}`);
                     break;
 
                 case 'saving': // Sesuaikan dengan db (bukan total_saved)
                     unlocked = stats.total_saved >= badge.requirement_value;
+                    console.log(`   Saving check: ${stats.total_saved} >= ${badge.requirement_value} = ${unlocked}`);
                     break;
 
                 case 'negative_carbon':
@@ -207,7 +211,7 @@ const checkAndAwardBadges = async (req, res) => {
             }
         }
         
-        console.log(`✅ Badge check complete. New badges: ${newlyUnlockedBadges.length}`);
+        console.log(`✅ Badge check complete. New badges: ${newBadges.length}`);
 
         res.json({ 
             hasNewBadges: newBadges.length > 0, 
