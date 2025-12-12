@@ -200,15 +200,28 @@ exports.getMissions = async (req, res) => {
                     console.log(`   Looking for: required_activity_id=${mission.required_activity_id} (type: ${typeof mission.required_activity_id})`);
                     console.log(`   Available activities in progressData: ${progressData.map(r => r.activity_id).join(', ')}`);
                     
-                    const activityData = progressData.find(row => row.activity_id === mission.required_activity_id);
-                    if (activityData) {
-                        progress = parseFloat(activityData.total_input || 0);
-                        console.log(`   ✅ FOUND! input=${activityData.total_input}, progress=${progress} / ${targetValue} (${Math.round((progress/targetValue)*100)}%)`);
+                    // Support untuk multiple activities (comma-separated IDs)
+                    let activityIds = [];
+                    if (mission.required_activity_id) {
+                        const idString = String(mission.required_activity_id);
+                        if (idString.includes(',')) {
+                            // Multiple IDs: "160,161"
+                            activityIds = idString.split(',').map(id => parseInt(id.trim()));
+                            console.log(`   🔀 Multiple activities detected: [${activityIds.join(', ')}]`);
+                        } else {
+                            // Single ID
+                            activityIds = [parseInt(idString)];
+                        }
+                    }
+                    
+                    // Sum progress dari semua matching activities
+                    const matchingActivities = progressData.filter(row => activityIds.includes(row.activity_id));
+                    if (matchingActivities.length > 0) {
+                        progress = matchingActivities.reduce((sum, row) => sum + parseFloat(row.total_input || 0), 0);
+                        console.log(`   ✅ FOUND ${matchingActivities.length} matching activities! Total progress=${progress} / ${targetValue} (${Math.round((progress/targetValue)*100)}%)`);
+                        matchingActivities.forEach(a => console.log(`      - Activity ${a.activity_id}: ${a.total_input}`));
                     } else {
                         console.log(`   ❌ NOT FOUND in progressData`);
-                        // Try type conversion comparison
-                        const matchById = progressData.find(row => row.activity_id == mission.required_activity_id);
-                        console.log(`   Loose comparison (==): ${matchById ? 'FOUND' : 'NOT FOUND'}`);
                     }
                     break;
 
