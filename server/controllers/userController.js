@@ -76,8 +76,24 @@ exports.getUserProfile = async (req, res) => {
 
         if (userRows.length === 0) return res.status(404).json({ message: 'User not found' });
 
-        // 2. Statistik Total Emisi
-        const [logRows] = await db.execute('SELECT SUM(carbon_produced) as total_emission, COUNT(*) as total_logs FROM daily_logs WHERE user_id = ?', [userId]);
+        // 2. Statistik Total Emisi & CO2 Saved
+        const [logRows] = await db.execute(`
+            SELECT 
+                SUM(carbon_produced) as total_emission, 
+                SUM(carbon_saved) as total_saved,
+                COUNT(*) as total_logs 
+            FROM daily_logs 
+            WHERE user_id = ?
+        `, [userId]);
+
+        // 2.5 Get User Rank & Total Users
+        const [rankRows] = await db.execute(`
+            SELECT COUNT(*) + 1 as user_rank
+            FROM users
+            WHERE total_xp > (SELECT total_xp FROM users WHERE id = ?)
+        `, [userId]);
+
+        const [totalUsersRows] = await db.execute('SELECT COUNT(*) as total FROM users');
 
         // 3. Semua Badge dengan status unlocked/locked
         const [badgeRows] = await db.execute(`
@@ -106,7 +122,10 @@ exports.getUserProfile = async (req, res) => {
             user: userRows[0],
             stats: {
                 totalEmission: logRows[0].total_emission || 0,
-                totalLogs: logRows[0].total_logs || 0
+                totalSaved: logRows[0].total_saved || 0,
+                totalLogs: logRows[0].total_logs || 0,
+                rank: rankRows[0].user_rank || 0,
+                totalUsers: totalUsersRows[0].total || 0
             },
             badges: badgeRows
         });

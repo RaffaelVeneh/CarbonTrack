@@ -47,7 +47,7 @@ export default function ProfilePage() {
             setStats(dataStats);
         }
 
-        // C. Ambil Detail User TERBARU (Level, XP, Health)
+        // C. Ambil Detail User TERBARU (Level, XP, Health, Rank)
         // --- PERBAIKAN DI SINI ---
         const resUser = await fetch(`${API_URL}/users/profile/${userId}`);
         const dataUser = await resUser.json();
@@ -63,6 +63,11 @@ export default function ProfilePage() {
             // Update State & LocalStorage
             setUser(updatedUser);
             localStorage.setItem('user', JSON.stringify(updatedUser));
+            
+            // Update stats dengan data dari profile (termasuk rank)
+            if (dataUser.stats) {
+                setStats(prev => ({...prev, ...dataUser.stats}));
+            }
         }
 
     } catch (error) {
@@ -125,13 +130,19 @@ export default function ProfilePage() {
                       <ShieldCheck size={14} className="text-emerald-600"/>
                       <span className="text-emerald-700">{user.total_xp || 0} Total XP</span>
                     </span>
+                    {stats.rank && (
+                      <span className="flex items-center gap-1.5 bg-gradient-to-r from-yellow-100 to-orange-100 px-3 py-1.5 rounded-lg text-sm font-semibold border border-yellow-300">
+                        <Trophy size={14} className="text-yellow-600"/>
+                        <span className="text-yellow-700">Peringkat #{stats.rank}</span>
+                      </span>
+                    )}
                   </div>
                 </div>
               </div>
 
-              {/* Bottom Section: Level Info + Stats */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {/* Left: Level & XP Progress */}
+              {/* Bottom Section: Level/Rank + Stats */}
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                {/* Left: Level Progress */}
                 <div className="bg-gradient-to-br from-yellow-50 to-orange-50 p-5 rounded-2xl border-2 border-yellow-200">
                   <div className="flex items-center gap-3 mb-4">
                     <div className="p-3 bg-gradient-to-r from-yellow-400 to-orange-500 rounded-xl shadow-lg">
@@ -164,6 +175,38 @@ export default function ProfilePage() {
                     </p>
                   </div>
                 </div>
+
+                {/* Middle: Leaderboard Rank */}
+                {stats.rank && (
+                  <div className="bg-gradient-to-br from-purple-50 to-pink-50 p-5 rounded-2xl border-2 border-purple-200 relative overflow-hidden">
+                    <div className="absolute top-0 right-0 w-32 h-32 bg-purple-200/30 rounded-full blur-2xl"></div>
+                    <div className="relative">
+                      <div className="flex items-center gap-3 mb-4">
+                        <div className="p-3 bg-gradient-to-r from-purple-500 to-pink-500 rounded-xl shadow-lg">
+                          <Trophy className="text-white" size={28} />
+                        </div>
+                        <div>
+                          <p className="text-sm text-gray-600 font-semibold">Peringkat Global</p>
+                          <p className="text-4xl font-black bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
+                            #{stats.rank}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="bg-white/60 backdrop-blur-sm rounded-xl p-3 border border-purple-200">
+                        <div className="flex items-center justify-between text-xs mb-1">
+                          <span className="font-semibold text-gray-600">Dari Total Pemain</span>
+                          <span className="font-bold text-purple-600">{stats.totalUsers || '...'} users</span>
+                        </div>
+                        <div className="text-xs text-gray-600 mt-2 font-medium">
+                          {stats.rank <= 3 ? '🏆 Top 3 Champion!' : 
+                           stats.rank <= 10 ? '🌟 Top 10 Elite!' :
+                           stats.rank <= 50 ? '⭐ Top 50 Player!' :
+                           '💪 Terus semangat!'}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 {/* Right: Quick Stats Grid */}
                 <div className="grid grid-cols-2 gap-3">
