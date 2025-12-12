@@ -1,5 +1,5 @@
 'use client';
-import { createContext, useContext, useState, useCallback } from 'react';
+import { createContext, useContext, useState, useCallback, useRef } from 'react';
 import BadgeRewardModal from '@/components/BadgeRewardModal';
 
 const BadgeContext = createContext();
@@ -7,9 +7,9 @@ const BadgeContext = createContext();
 export function BadgeProvider({ children }) {
   const [currentBadge, setCurrentBadge] = useState(null);
   const [badgeQueue, setBadgeQueue] = useState([]);
+  const checkingRef = useRef(false);
+  const lastCheckRef = useRef(0);
 
-  // --- PERBAIKAN URL ---
-  // Gunakan variabel environment, kalau tidak ada baru pakai localhost
   const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
 
   const showBadge = useCallback((badge) => {
@@ -42,10 +42,23 @@ export function BadgeProvider({ children }) {
     }
   }, [badgeQueue]);
 
-  // Check for new badges
+  // OPTIMIZED: Check for new badges dengan debounce & rate limiting
   const checkBadges = useCallback(async (userId) => {
+    // Prevent concurrent checks
+    if (checkingRef.current) {
+      return { hasNewBadges: false, newBadges: [] };
+    }
+
+    // Rate limiting: minimum 3 detik antara checks
+    const now = Date.now();
+    if (now - lastCheckRef.current < 3000) {
+      return { hasNewBadges: false, newBadges: [] };
+    }
+
+    checkingRef.current = true;
+    lastCheckRef.current = now;
+
     try {
-      // Gunakan API_URL yang sudah didefinisikan di atas
       const response = await fetch(`${API_URL}/badges/check`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -62,8 +75,10 @@ export function BadgeProvider({ children }) {
     } catch (error) {
       console.error('❌ Error checking badges:', error);
       return { hasNewBadges: false, newBadges: [] };
+    } finally {
+      checkingRef.current = false;
     }
-  }, [showBadges, API_URL]); // Masukkan API_URL ke dependency
+  }, [showBadges, API_URL]);
 
   return (
     <BadgeContext.Provider value={{ showBadge, showBadges, checkBadges }}>

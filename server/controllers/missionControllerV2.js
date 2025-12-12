@@ -1,21 +1,65 @@
 const db = require('../config/db');
 
 /**
- * MISSION SYSTEM V2 - Advanced Gamification
- * Support untuk berbagai tipe misi dengan tracking otomatis
+ * MISSION SYSTEM V2 - OPTIMIZED
+ * Mengurangi N+1 queries dengan batch processing
  */
 
-// 1. GET MISSIONS - Ambil Misi Sesuai Level dengan Progress Real-time
+// Simple in-memory cache (5 menit)
+const cache = new Map();
+const CACHE_TTL = 5 * 60 * 1000; // 5 menit
+
+function getCacheKey(userId) {
+    return `missions_${userId}`;
+}
+
+function getCache(key) {
+    const cached = cache.get(key);
+    if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+        return cached.data;
+    }
+    cache.delete(key);
+    return null;
+}
+
+function setCache(key, data) {
+    cache.set(key, { data, timestamp: Date.now() });
+}
+
+// Clear cache untuk user tertentu (EXPORT untuk digunakan di controller lain)
+function clearUserCache(userId) {
+    const key = getCacheKey(userId);
+    cache.delete(key);
+    console.log(`🗑️  Cache cleared for user ${userId}`);
+}
+
+// Export clearUserCache agar bisa dipanggil dari logController
+module.exports.clearUserCache = clearUserCache;
+
+// 1. GET MISSIONS - OPTIMIZED dengan Batch Queries
 exports.getMissions = async (req, res) => {
+    const startTime = Date.now();
     try {
         const { userId } = req.params;
+        console.log(`📊 Fetching missions for user ${userId}`);
+
+        // Cek cache dulu
+        const cacheKey = getCacheKey(userId);
+        const cachedData = getCache(cacheKey);
+        if (cachedData) {
+            console.log(`✅ Cache hit for user ${userId} (${Date.now() - startTime}ms)`);
+            return res.json(cachedData);
+        }
 
         // A. Ambil Data User
         const [userRows] = await db.execute(
             'SELECT id, username, total_xp, current_level, island_health FROM users WHERE id = ?', 
             [userId]
         );
-        if (userRows.length === 0) return res.status(404).json({ message: 'User not found' });
+        if (userRows.length === 0) {
+            console.log(`❌ User ${userId} not found`);
+            return res.status(404).json({ message: 'User not found' });
+        }
         
         const user = userRows[0];
         const currentLevel = user.current_level;
@@ -25,30 +69,109 @@ exports.getMissions = async (req, res) => {
         const nextLevelXP = currentLevel * xpPerLevel;
         const xpProgress = user.total_xp - ((currentLevel - 1) * xpPerLevel);
 
-        // B. Ambil Misi yang Sesuai Level User
+        // B. Ambil Misi yang Sesuai Level User + Claimed Status (BATCH QUERY 1)
         const [missions] = await db.execute(`
             SELECT 
-                m.*
+                m.*,
+                CASE WHEN um.status = 'claimed' THEN 1 ELSE 0 END as is_claimed
             FROM missions m
+            LEFT JOIN user_missions um ON m.id = um.mission_id AND um.user_id = ? AND um.status = 'claimed'
             WHERE m.min_level <= ? + 1
             ORDER BY m.min_level ASC, m.difficulty ASC, m.id ASC
-        `, [currentLevel]);
+        `, [userId, currentLevel]);
 
-        // C. Untuk setiap misi, hitung progress berdasarkan tipe misi
-        const missionsWithProgress = await Promise.all(missions.map(async (mission) => {
-            try {
-                // Cek apakah sudah diklaim
-                const [claimCheck] = await db.execute(
-                    'SELECT * FROM user_missions WHERE user_id = ? AND mission_id = ? AND status = "claimed"',
-                    [userId, mission.id]
-                );
-                const isClaimed = claimCheck.length > 0;
-                const isLocked = mission.min_level > currentLevel;
+        // C. BATCH QUERY 2: Ambil SEMUA progress data sekaligus untuk semua mission types
+        let maxDurationDays = 30; // Default
+        if (missions.length > 0) {
+            const durations = missions.map(m => parseInt(m.duration_days) || 30).filter(d => !isNaN(d) && d > 0);
+            if (durations.length > 0) {
+                maxDurationDays = Math.min(Math.max(...durations), 365);
+            }
+        }
+
+        // Skip batch queries jika tidak ada misi
+        let progressData = [];
+        let consecutiveDaysData = [];
+        let transportData = [];
+
+        if (missions.length > 0) {
+            // Query tanpa GROUP BY log_date untuk aggregasi yang benar
+            const [progressResult] = await db.execute(`
+                SELECT 
+                    activity_id,
+                    SUM(carbon_saved) as total_saved,
+                    SUM(carbon_produced) as total_produced,
+                    SUM(input_value) as total_input,
+                    COUNT(DISTINCT log_date) as activity_days,
+                    COUNT(*) as activity_count,
+                    MIN(log_date) as first_date,
+                    MAX(log_date) as last_date
+                FROM daily_logs
+                WHERE user_id = ?
+                AND log_date >= DATE_SUB(CURDATE(), INTERVAL ? DAY)
+                GROUP BY activity_id
+            `, [userId, maxDurationDays]);
+            progressData = progressResult || [];
+            
+            console.log(`\n📦 Progress data loaded: ${progressData.length} unique activities for user ${userId}`);
+            console.log(`   Query params: userId=${userId}, maxDurationDays=${maxDurationDays}`);
+            console.log(`   Date cutoff: >= ${new Date(Date.now() - maxDurationDays * 24 * 60 * 60 * 1000).toISOString().split('T')[0]}`);
+            if (progressData.length > 0) {
+                progressData.forEach(row => {
+                    console.log(`  🔹 Activity ${row.activity_id} (type: ${typeof row.activity_id}): input=${row.total_input}, saved=${row.total_saved}, count=${row.activity_count}`);
+                });
+            } else {
+                console.log(`  ⚠️ No activity logs found for user ${userId}`);
+            }
+
+            // D. Query untuk consecutive days (BATCH QUERY 3)
+            // Note: LIMIT must be hardcoded for TiDB compatibility
+            const [consecutiveResult] = await db.execute(`
+                SELECT DISTINCT log_date
+                FROM daily_logs
+                WHERE user_id = ?
+                AND carbon_saved > 0
+                ORDER BY log_date DESC
+                LIMIT ${maxDurationDays}
+            `, [userId]);
+            consecutiveDaysData = consecutiveResult || [];
+
+            // E. Query untuk transportation distance (BATCH QUERY 4)
+            const [transportResult] = await db.execute(`
+                SELECT 
+                    SUM(dl.input_value) as total
+                FROM daily_logs dl
+                JOIN activities a ON dl.activity_id = a.id
+                WHERE dl.user_id = ?
+                AND a.category = 'transportation'
+                AND dl.log_date >= DATE_SUB(CURDATE(), INTERVAL ? DAY)
+            `, [userId, maxDurationDays]);
+            transportData = transportResult || [];
+        }
+
+        // F. Process missions dengan data yang sudah di-batch
+        console.log(`\n🎯 Processing ${missions.length} missions for user ${userId} (Level ${currentLevel})`);
+        
+        const missionsWithProgress = missions.map((mission) => {
+            const isClaimed = mission.is_claimed === 1;
+            const isLocked = mission.min_level > currentLevel;
 
             // Skip progress calculation jika sudah claimed atau locked
             if (isClaimed || isLocked) {
                 return {
-                    ...mission,
+                    id: mission.id,
+                    title: mission.title,
+                    description: mission.description,
+                    mission_type: mission.mission_type,
+                    target_value: parseFloat(mission.target_value),
+                    duration_days: mission.duration_days,
+                    required_activity_id: mission.required_activity_id,
+                    min_level: mission.min_level,
+                    max_level: mission.max_level,
+                    xp_reward: mission.xp_reward,
+                    health_reward: mission.health_reward,
+                    icon: mission.icon,
+                    difficulty: mission.difficulty,
                     progress: 0,
                     progress_text: '0 / ' + mission.target_value,
                     is_completed: false,
@@ -59,82 +182,53 @@ exports.getMissions = async (req, res) => {
                 };
             }
 
-            // Hitung progress berdasarkan mission_type
+            // Hitung progress dari batch data yang sudah di-aggregate
             let progress = 0;
             let targetValue = parseFloat(mission.target_value);
 
             switch (mission.mission_type) {
                 case 'co2_saved':
-                    // Total CO2 yang dihemat dalam durasi tertentu
-                    const [savedResult] = await db.execute(`
-                        SELECT SUM(carbon_saved) as total
-                        FROM daily_logs
-                        WHERE user_id = ?
-                        AND log_date >= DATE_SUB(CURDATE(), INTERVAL ? DAY)
-                    `, [userId, mission.duration_days - 1]);
-                    progress = parseFloat(savedResult[0].total || 0);
-                    console.log(`User ${userId} - Mission ${mission.id} (${mission.title}): CO2 Saved = ${progress}`);
+                    progress = progressData.reduce((sum, row) => sum + parseFloat(row.total_saved || 0), 0);
                     break;
 
                 case 'co2_produced':
-                    // Total CO2 yang diproduksi (untuk misi "Zero Carbon")
-                    const [producedResult] = await db.execute(`
-                        SELECT SUM(carbon_produced) as total
-                        FROM daily_logs
-                        WHERE user_id = ?
-                        AND log_date >= DATE_SUB(CURDATE(), INTERVAL ? DAY)
-                    `, [userId, mission.duration_days - 1]);
-                    progress = parseFloat(producedResult[0].total || 0);
-                    // Untuk tipe ini, completed jika progress <= target (misal target 0)
+                    progress = progressData.reduce((sum, row) => sum + parseFloat(row.total_produced || 0), 0);
                     break;
 
                 case 'specific_activity':
-                    // Aktivitas spesifik (misal: Bersepeda 5km)
-                    const [activityResult] = await db.execute(`
-                        SELECT SUM(input_value) as total
-                        FROM daily_logs
-                        WHERE user_id = ?
-                        AND activity_id = ?
-                        AND log_date >= DATE_SUB(CURDATE(), INTERVAL ? DAY)
-                    `, [userId, mission.required_activity_id, mission.duration_days - 1]);
-                    progress = parseFloat(activityResult[0].total || 0);
+                    console.log(`\n🎯 Mission ${mission.id} "${mission.title}"`);
+                    console.log(`   Looking for: required_activity_id=${mission.required_activity_id} (type: ${typeof mission.required_activity_id})`);
+                    console.log(`   Available activities in progressData: ${progressData.map(r => r.activity_id).join(', ')}`);
+                    
+                    const activityData = progressData.find(row => row.activity_id === mission.required_activity_id);
+                    if (activityData) {
+                        progress = parseFloat(activityData.total_input || 0);
+                        console.log(`   ✅ FOUND! input=${activityData.total_input}, progress=${progress} / ${targetValue} (${Math.round((progress/targetValue)*100)}%)`);
+                    } else {
+                        console.log(`   ❌ NOT FOUND in progressData`);
+                        // Try type conversion comparison
+                        const matchById = progressData.find(row => row.activity_id == mission.required_activity_id);
+                        console.log(`   Loose comparison (==): ${matchById ? 'FOUND' : 'NOT FOUND'}`);
+                    }
                     break;
 
                 case 'activity_count':
-                    // Jumlah aktivitas ramah lingkungan (activity_id >= 101)
-                    const [countResult] = await db.execute(`
-                        SELECT COUNT(*) as total
-                        FROM daily_logs
-                        WHERE user_id = ?
-                        AND activity_id >= 101
-                        AND log_date >= DATE_SUB(CURDATE(), INTERVAL ? DAY)
-                    `, [userId, mission.duration_days - 1]);
-                    progress = parseFloat(countResult[0].total || 0);
+                    const greenActivities = progressData.filter(row => row.activity_id >= 101);
+                    progress = greenActivities.reduce((sum, row) => sum + parseFloat(row.activity_count || 0), 0);
                     break;
 
                 case 'consecutive_days':
-                    // Hitung berapa hari berturut-turut user hemat CO2
                     const maxDays = parseInt(mission.duration_days);
-                    console.log(`Mission ${mission.id} - duration_days: ${mission.duration_days}, maxDays: ${maxDays}, type: ${typeof maxDays}`);
-                    
                     if (isNaN(maxDays) || maxDays <= 0) {
-                        console.error(`Invalid maxDays for mission ${mission.id}: ${maxDays}`);
                         progress = 0;
                         break;
                     }
                     
-                    const [daysResult] = await db.execute(`
-                        SELECT DISTINCT log_date
-                        FROM daily_logs
-                        WHERE user_id = ?
-                        AND carbon_saved > 0
-                        ORDER BY log_date DESC
-                        LIMIT ?
-                    `, [userId, maxDays]);
+                    const dates = consecutiveDaysData
+                        .slice(0, maxDays)
+                        .map(row => new Date(row.log_date));
                     
-                    // Check consecutive
                     let consecutiveDays = 0;
-                    const dates = daysResult.map(row => new Date(row.log_date));
                     if (dates.length > 0) {
                         consecutiveDays = 1;
                         for (let i = 0; i < dates.length - 1; i++) {
@@ -147,20 +241,12 @@ exports.getMissions = async (req, res) => {
                         }
                     }
                     progress = consecutiveDays;
-                    targetValue = parseFloat(mission.target_value);
                     break;
 
                 case 'total_distance':
-                    // Total jarak untuk aktivitas transportasi
-                    const [distanceResult] = await db.execute(`
-                        SELECT SUM(dl.input_value) as total
-                        FROM daily_logs dl
-                        JOIN activities a ON dl.activity_id = a.id
-                        WHERE dl.user_id = ?
-                        AND a.category = 'transportation'
-                        AND dl.log_date >= DATE_SUB(CURDATE(), INTERVAL ? DAY)
-                    `, [userId, mission.duration_days - 1]);
-                    progress = parseFloat(distanceResult[0].total || 0);
+                    if (transportData.length > 0 && transportData[0]) {
+                        progress = parseFloat(transportData[0].total || 0);
+                    }
                     break;
 
                 default:
@@ -170,10 +256,8 @@ exports.getMissions = async (req, res) => {
             // Tentukan apakah completed
             let isCompleted = false;
             if (mission.mission_type === 'co2_produced') {
-                // Untuk tipe CO2 produced, completed jika progress <= target
                 isCompleted = progress <= targetValue;
             } else {
-                // Untuk tipe lainnya, completed jika progress >= target
                 isCompleted = progress >= targetValue;
             }
 
@@ -207,39 +291,13 @@ exports.getMissions = async (req, res) => {
                 progress_text: progressText,
                 is_completed: isCompleted,
                 is_claimed: isClaimed,
-                is_locked: false, // Tidak locked karena sudah difilter di atas
+                is_locked: false,
                 is_completable: isCompleted && !isClaimed,
                 can_claim: isCompleted && !isClaimed
             };
-        } catch (error) {
-            console.error(`Error processing mission ${mission.id}:`, error);
-                // Return mission dengan progress 0 jika ada error
-                return {
-                    id: mission.id,
-                    title: mission.title,
-                    description: mission.description,
-                    mission_type: mission.mission_type,
-                    target_value: parseFloat(mission.target_value),
-                    duration_days: mission.duration_days,
-                    required_activity_id: mission.required_activity_id,
-                    min_level: mission.min_level,
-                    max_level: mission.max_level,
-                    xp_reward: mission.xp_reward,
-                    health_reward: mission.health_reward,
-                    icon: mission.icon,
-                    difficulty: mission.difficulty,
-                    progress: 0,
-                    progress_text: '0 / ' + mission.target_value,
-                    is_completed: false,
-                    is_claimed: false,
-                    is_locked: false,
-                    is_completable: false,
-                    can_claim: false
-                };
-        }
-        }));
+        });
 
-        res.json({
+        const result = {
             levelInfo: {
                 currentLevel,
                 currentXP: user.total_xp,
@@ -249,15 +307,28 @@ exports.getMissions = async (req, res) => {
                 progressPercentage: Math.floor((xpProgress / xpPerLevel) * 100)
             },
             missions: missionsWithProgress
-        });
+        };
+
+        // Simpan ke cache
+        setCache(cacheKey, result);
+
+        const totalTime = Date.now() - startTime;
+        console.log(`✅ Missions fetched successfully for user ${userId} in ${totalTime}ms (${missionsWithProgress.length} missions)`);
+
+        res.json(result);
 
     } catch (error) {
-        console.error('Error getMissions:', error);
-        res.status(500).json({ message: 'Server Error', error: error.message });
+        console.error('❌ Error getMissions:', error);
+        console.error('Stack trace:', error.stack);
+        res.status(500).json({ 
+            message: 'Server Error', 
+            error: error.message,
+            details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+        });
     }
 };
 
-// 2. CLAIM MISSION - Klaim Reward Misi
+// 2. CLAIM MISSION - OPTIMIZED dengan Cache Clear
 exports.claimMission = async (req, res) => {
     try {
         const { userId, missionId } = req.body;
@@ -292,31 +363,29 @@ exports.claimMission = async (req, res) => {
             return res.status(400).json({ message: 'Misi ini sudah diklaim!' });
         }
 
-        // E. Validasi Progress (Re-check di server)
-        // ... (kita bisa copy logic dari getMissions untuk validasi ulang)
-        // Untuk simplicity, kita trust frontend untuk sekarang
-        // Tapi di production, WAJIB validasi ulang progress di server!
-
-        // F. Save ke user_missions
+        // E. Save ke user_missions
         await db.execute(
             'INSERT INTO user_missions (user_id, mission_id, status, progress_value, completed_at, claimed_at) VALUES (?, ?, "claimed", ?, NOW(), NOW())',
             [userId, missionId, mission.target_value]
         );
 
-        // G. Hitung Reward
+        // F. Hitung Reward
         const newXP = user.total_xp + mission.xp_reward;
         const xpPerLevel = 100;
         let newLevel = Math.floor(newXP / xpPerLevel) + 1;
         const leveledUp = newLevel > user.current_level;
 
-        // H. Update Health
+        // G. Update Health
         const newHealth = Math.min(100, user.island_health + mission.health_reward);
 
-        // I. Update User
+        // H. Update User
         await db.execute(
             'UPDATE users SET total_xp = ?, current_level = ?, island_health = ? WHERE id = ?',
             [newXP, newLevel, newHealth, userId]
         );
+
+        // I. CLEAR CACHE setelah claim berhasil
+        clearUserCache(userId);
 
         res.json({
             success: true,
@@ -325,6 +394,9 @@ exports.claimMission = async (req, res) => {
             healthAdded: mission.health_reward,
             newLevel,
             leveledUp,
+            currentXP: newXP,
+            xpPerLevel,
+            xpPercentage: ((newXP - ((newLevel - 1) * xpPerLevel)) / xpPerLevel) * 100,
             rewards: {
                 xp: mission.xp_reward,
                 health: mission.health_reward,

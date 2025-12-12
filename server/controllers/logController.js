@@ -159,6 +159,16 @@ exports.createLog = async (req, res) => {
         await db.execute(updateQuery, [newStreak, latestInputDate, user_id]);
         console.log(`✅ User Updated Successfully!\n`);
 
+        // CLEAR MISSION CACHE agar progress langsung update
+        try {
+            const missionController = require('./missionControllerV2');
+            if (missionController.clearUserCache) {
+                missionController.clearUserCache(user_id);
+            }
+        } catch (err) {
+            console.log('⚠️  Could not clear mission cache:', err.message);
+        }
+
         res.status(201).json({ 
             message: 'Log disimpan!', 
             co2_produced: carbonProduced,

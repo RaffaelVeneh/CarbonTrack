@@ -19,7 +19,8 @@ export default function ActivityModal({ isOpen, onClose, userId, onRefresh, init
   const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
 
   useEffect(() => {
-    if (isOpen) {
+    if (isOpen && activities.length === 0) {
+      // Only fetch if activities not loaded yet (cache in state)
       fetch(`${API_URL}/logs/activities`) 
         .then(res => res.json())
         .then(data => {
@@ -33,7 +34,6 @@ export default function ActivityModal({ isOpen, onClose, userId, onRefresh, init
                 } else {
                     setMode('emission');
                 }
-                // Set search query to selected activity name
                 if (targetActivity) {
                   setSearchQuery(targetActivity.activity_name);
                 }
@@ -44,8 +44,21 @@ export default function ActivityModal({ isOpen, onClose, userId, onRefresh, init
             }
         })
         .catch(err => console.error("Gagal load aktivitas:", err));
+    } else if (isOpen && initialActivityId) {
+      // If activities already loaded, just set the initial activity
+      const targetId = parseInt(initialActivityId);
+      const targetActivity = activities.find(act => act.id === targetId);
+      setSelectedActivity(targetId);
+      if (targetActivity?.impact_type === 'positive') {
+          setMode('saving');
+      } else {
+          setMode('emission');
+      }
+      if (targetActivity) {
+        setSearchQuery(targetActivity.activity_name);
+      }
     }
-  }, [isOpen, API_URL, initialActivityId]);
+  }, [isOpen, API_URL, initialActivityId, activities]);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -133,19 +146,21 @@ export default function ActivityModal({ isOpen, onClose, userId, onRefresh, init
         })
       });
 
-      // --- PERBAIKAN: DEFINISIKAN VARIABLE RESULT DULU ---
       const result = await res.json(); 
-      // --------------------------------------------------
 
       if (res.ok) {
-        // Sekarang variabel 'result' sudah ada isinya, aman dipakai
         if (result.newStreak !== undefined && onUpdateStreak) {
-            console.log("🔥 Force updating streak to:", result.newStreak);
             onUpdateStreak(result.newStreak); 
         }
         
+        // Refresh data
         onRefresh(); 
-        await checkBadges(userId); 
+        
+        // Badge check dengan timeout (non-blocking)
+        setTimeout(() => {
+          checkBadges(userId).catch(err => console.error('Badge check error:', err));
+        }, 500);
+        
         setShowSuccess(true);
         setInputValue('');
         setSelectedActivity('');

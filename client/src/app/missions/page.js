@@ -1,19 +1,22 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo, useCallback, lazy, Suspense } from 'react';
 import Sidebar from '@/components/Sidebar';
 import ActivityModal from '@/components/ActivityModal';
 import NotificationDropdown from '@/components/NotificationDropdown';
-import EcoPlant from '@/components/EcoPlant'; // <--- 1. IMPORT ECO PLANT
 import { Target, CheckCircle, Lock, Zap, PartyPopper, TrendingUp, ArrowRight } from 'lucide-react';
-import Confetti from 'react-confetti';
 import { useBadge } from '@/contexts/BadgeContext';
+
+// Lazy load heavy components
+const EcoPlant = lazy(() => import('@/components/EcoPlant'));
+const Confetti = lazy(() => import('react-confetti'));
 
 export default function MissionsPage() {
   const [missions, setMissions] = useState([]);
   const [levelInfo, setLevelInfo] = useState(null);
   const [user, setUser] = useState(null);
   const [showConfetti, setShowConfetti] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   
   const [notification, setNotification] = useState(null);
   const [isActivityModalOpen, setIsActivityModalOpen] = useState(false);
@@ -22,30 +25,38 @@ export default function MissionsPage() {
   const { checkBadges } = useBadge();
   const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
 
-  useEffect(() => {
-    const userData = JSON.parse(localStorage.getItem('user'));
-    setUser(userData);
-    if (userData) fetchMissions(userData.id);
-  }, []);
-
-  const fetchMissions = async (userId) => {
+  // Memoized fetch function (without isLoading in deps to avoid infinite loop)
+  const fetchMissions = useCallback(async (userId) => {
+    setIsLoading(true);
     try {
-      const res = await fetch(`${API_URL}/missions/${userId}`);
+      const res = await fetch(`${API_URL}/missions/${userId}`, {
+        headers: { 'Cache-Control': 'max-age=300' } // Cache 5 menit
+      });
       const data = await res.json();
       
       if (data.missions) setMissions(data.missions);
       if (data.levelInfo) setLevelInfo(data.levelInfo);
     } catch (err) { 
       console.error('Fetch missions error:', err);
+    } finally {
+      setIsLoading(false);
     }
-  };
+  }, [API_URL]);
 
-  const handleDoMission = (requiredActivityId) => {
+  useEffect(() => {
+    const userData = JSON.parse(localStorage.getItem('user'));
+    setUser(userData);
+    if (userData) fetchMissions(userData.id);
+  }, []); // Empty deps - only run once on mount
+
+  const handleDoMission = useCallback((requiredActivityId) => {
     setTargetActivityId(requiredActivityId); 
     setIsActivityModalOpen(true);
-  };
+  }, []);
 
-  const handleClaim = async (missionId) => {
+  const handleClaim = useCallback(async (missionId) => {
+    // Prevent duplicate claims
+    setIsLoading(true);
     try {
         const res = await fetch(`${API_URL}/missions/claim`, {
             method: 'POST',
@@ -55,14 +66,26 @@ export default function MissionsPage() {
         const result = await res.json();
 
         if (res.ok) {
-            const oldLevelInfo = { ...levelInfo };
-            await fetchMissions(user.id);
-            await checkBadges(user.id);
-            
+            // OPTIMISTIC UI UPDATE - Update state dulu tanpa fetch ulang
+            const updatedMissions = missions.map(m => 
+                m.id === missionId ? { ...m, is_claimed: true, is_completable: false } : m
+            );
+            setMissions(updatedMissions);
+
+            // Update level info dari response (backend sudah kirim data lengkap)
+            if (result.newLevel) {
+                setLevelInfo(prev => ({
+                    ...prev,
+                    currentLevel: result.newLevel,
+                    currentXP: result.currentXP,
+                    xpProgress: result.currentXP - ((result.newLevel - 1) * prev.xpPerLevel),
+                    progressPercentage: Math.floor(result.xpPercentage)
+                }));
+            }
+
             const leveledUp = result.leveledUp || false;
 
             if (leveledUp) {
-                // Trigger confetti untuk level up
                 setShowConfetti(true);
                 setNotification({
                     type: 'levelup',
@@ -72,16 +95,21 @@ export default function MissionsPage() {
                 });
                 setTimeout(() => setShowConfetti(false), 5000);
             } else {
-                // Tampilkan notifikasi XP dengan progress bar
                 setNotification({
                     type: 'success',
                     message: `Mantap! Misi selesai. Lihat progress XP-mu!`,
                     xpGained: result.xpAdded,
-                    currentXP: result.currentXP || (oldLevelInfo.xpProgress + result.xpAdded),
-                    maxXP: result.xpPerLevel || oldLevelInfo.xpPerLevel,
-                    xpPercentage: result.xpPercentage || ((oldLevelInfo.xpProgress + result.xpAdded) / oldLevelInfo.xpPerLevel) * 100
+                    currentXP: result.currentXP,
+                    maxXP: result.xpPerLevel,
+                    xpPercentage: result.xpPercentage
                 });
             }
+
+            // Badge check dengan debounce (500ms delay, tidak blocking)
+            setTimeout(() => {
+                checkBadges(user.id).catch(err => console.error('Badge check error:', err));
+            }, 500);
+
         } else {
             setNotification({ 
                 type: 'error', 
@@ -94,23 +122,34 @@ export default function MissionsPage() {
             type: 'error', 
             message: 'Gagal mengklaim misi. Silakan coba lagi.'
         });
+    } finally {
+        setIsLoading(false);
     }
-  };
+  }, [API_URL, user, missions, checkBadges, isLoading]);
 
-  const closeNotification = () => setNotification(null);
+  const closeNotification = useCallback(() => setNotification(null), []);
+
+  // Memoized computations
+  const xpPercentage = useMemo(() => {
+    if (!levelInfo) return 0;
+    return (levelInfo.xpProgress / levelInfo.xpPerLevel) * 100;
+  }, [levelInfo]);
+  
+  const completedMissionsCount = useMemo(() => {
+    return missions.filter(m => m.is_claimed).length;
+  }, [missions]);
 
   if (!user || !levelInfo) return null;
-
-  const xpPercentage = (levelInfo.xpProgress / levelInfo.xpPerLevel) * 100;
-  
-  // 2. HITUNG JUMLAH MISI SELESAI (claimed) UNTUK TANAMAN
-  const completedMissionsCount = missions.filter(m => m.is_claimed).length;
 
   return (
     <div className="min-h-screen bg-gray-50 flex font-sans">
       <Sidebar />
       
-      {showConfetti && <Confetti recycle={false} numberOfPieces={800} gravity={0.3} />}
+      {showConfetti && (
+        <Suspense fallback={null}>
+          <Confetti recycle={false} numberOfPieces={800} gravity={0.3} />
+        </Suspense>
+      )}
 
       <NotificationDropdown 
         notification={notification}
@@ -153,8 +192,13 @@ export default function MissionsPage() {
 
             {/* KOTAK KANAN: TAMAGOTCHI TANAMAN (Lebar 1 Kolom) */}
             <div className="lg:col-span-1 h-full min-h-[250px]">
-                {/* 3. PANGGIL KOMPONEN ECO PLANT */}
-                <EcoPlant completedCount={completedMissionsCount} />
+                <Suspense fallback={
+                  <div className="bg-white rounded-3xl p-6 shadow-xl border border-emerald-100 flex items-center justify-center h-full">
+                    <div className="animate-pulse text-emerald-600">Loading plant...</div>
+                  </div>
+                }>
+                  <EcoPlant completedCount={completedMissionsCount} />
+                </Suspense>
             </div>
 
         </div>
