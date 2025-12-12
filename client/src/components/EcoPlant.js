@@ -73,10 +73,10 @@ export default function EcoPlant({ plantHealth = 0 }) {
       </div>
 
       {/* --- AREA GAMBAR (SVG TUNGGAL - PRESISI) --- */}
-      <div className="relative z-10 flex-1 flex items-end justify-center pb-2">
+      <div className="relative z-10 flex-1 flex items-end justify-center pb-2 overflow-hidden">
         
         {/* Kanvas SVG Ukuran 200x200 (Agar proporsional) */}
-        <svg viewBox="0 0 200 200" className="w-48 h-48 drop-shadow-lg transition-all duration-500">
+        <svg viewBox="0 0 200 200" className="w-48 h-48 drop-shadow-lg transition-all duration-500" style={{ overflow: 'visible' }}>
             
             {/* 1. TANAH (Paling Belakang - Selalu Ada) */}
             <ellipse cx="100" cy="160" rx="35" ry="10" fill="#5D4037" />
@@ -122,22 +122,40 @@ export default function EcoPlant({ plantHealth = 0 }) {
 
             {/* STAGE 5: BUNGA MEKAR PENUH */}
             <g className={`transition-all duration-1000 ease-elastic delay-300 ${stage >= 5 ? 'scale-100 opacity-100' : 'scale-0 opacity-0'}`} transform="translate(100, 70)">
-                {/* Kelopak Bunga Matahari (Berputar pelan) */}
-                <g className="animate-spin-slow origin-center">
-                    <circle cx="0" cy="-25" r="10" fill="#FBBF24" />
-                    <circle cx="18" cy="-18" r="10" fill="#FBBF24" />
-                    <circle cx="25" cy="0" r="10" fill="#FBBF24" />
-                    <circle cx="18" cy="18" r="10" fill="#FBBF24" />
-                    <circle cx="0" cy="25" r="10" fill="#FBBF24" />
-                    <circle cx="-18" cy="18" r="10" fill="#FBBF24" />
-                    <circle cx="-25" cy="0" r="10" fill="#FBBF24" />
-                    <circle cx="-18" cy="-18" r="10" fill="#FBBF24" />
+                {/* Kelopak Bunga Matahari (Animasi float lebih halus tanpa rotate) */}
+                <g>
+                    <circle cx="0" cy="-25" r="10" fill="#FBBF24">
+                        <animateTransform attributeName="transform" type="scale" values="1;1.1;1" dur="2s" repeatCount="indefinite" />
+                    </circle>
+                    <circle cx="18" cy="-18" r="10" fill="#FBBF24">
+                        <animateTransform attributeName="transform" type="scale" values="1;1.1;1" dur="2s" begin="0.2s" repeatCount="indefinite" />
+                    </circle>
+                    <circle cx="25" cy="0" r="10" fill="#FBBF24">
+                        <animateTransform attributeName="transform" type="scale" values="1;1.1;1" dur="2s" begin="0.4s" repeatCount="indefinite" />
+                    </circle>
+                    <circle cx="18" cy="18" r="10" fill="#FBBF24">
+                        <animateTransform attributeName="transform" type="scale" values="1;1.1;1" dur="2s" begin="0.6s" repeatCount="indefinite" />
+                    </circle>
+                    <circle cx="0" cy="25" r="10" fill="#FBBF24">
+                        <animateTransform attributeName="transform" type="scale" values="1;1.1;1" dur="2s" begin="0.8s" repeatCount="indefinite" />
+                    </circle>
+                    <circle cx="-18" cy="18" r="10" fill="#FBBF24">
+                        <animateTransform attributeName="transform" type="scale" values="1;1.1;1" dur="2s" begin="1s" repeatCount="indefinite" />
+                    </circle>
+                    <circle cx="-25" cy="0" r="10" fill="#FBBF24">
+                        <animateTransform attributeName="transform" type="scale" values="1;1.1;1" dur="2s" begin="1.2s" repeatCount="indefinite" />
+                    </circle>
+                    <circle cx="-18" cy="-18" r="10" fill="#FBBF24">
+                        <animateTransform attributeName="transform" type="scale" values="1;1.1;1" dur="2s" begin="1.4s" repeatCount="indefinite" />
+                    </circle>
                 </g>
                 {/* Pusat Bunga */}
                 <circle cx="0" cy="0" r="15" fill="#78350F" stroke="#92400E" strokeWidth="2" />
                 
                 {/* Efek Kilau */}
-                <circle cx="5" cy="-5" r="3" fill="white" opacity="0.3" />
+                <circle cx="5" cy="-5" r="3" fill="white" opacity="0.3">
+                    <animate attributeName="opacity" values="0.3;0.8;0.3" dur="1.5s" repeatCount="indefinite" />
+                </circle>
             </g>
 
             {/* 3. POT (Paling Depan - Selalu Ada) */}
