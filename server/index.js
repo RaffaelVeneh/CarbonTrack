@@ -25,13 +25,15 @@ app.use(express.json());
 // --- 3. GUNAKAN ROUTES ---
 app.use('/api/auth', authRoutes);
 app.use('/api/logs', logRoutes);
-app.use('/api/missions', missionRoutes);
 
 // --- 4. GUNAKAN ROUTES BARU ---
 app.use('/api/users', userRoutes); // <-- TAMBAHAN BARU (Akses: /api/users/leaderboard)
 app.use('/api/ai', aiRoutes);       // <-- TAMBAHAN BARU (Akses: /api/ai/ask)
 app.use('/api/badges', badgeRoutes); // <-- TAMBAHAN BARU (Akses: /api/badges)
-app.use('/api/missions/daily', dailyMissionRoutes); // <-- TAMBAHAN BARU (Akses: /api/missions/daily/:userId)
+
+// PENTING: Daily missions route harus SEBELUM missions route (lebih spesifik)
+app.use('/api/missions/daily', dailyMissionRoutes); // <-- Harus di atas /api/missions
+app.use('/api/missions', missionRoutes); // <-- Wildcard route terakhir
 
 // Test Route
 app.get('/', (req, res) => {
