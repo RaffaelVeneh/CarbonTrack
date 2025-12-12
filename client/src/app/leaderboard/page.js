@@ -1,37 +1,98 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import Sidebar from '@/components/Sidebar';
-import { Trophy, Crown, Medal, Search, TrendingUp, Award, Zap, Leaf, Star, Users, Filter, ChevronDown, Sparkles } from 'lucide-react';
+import { Trophy, Crown, Medal, Search, TrendingUp, Award, Zap, Leaf, Star, Users, Filter, ChevronDown, Sparkles, Loader2 } from 'lucide-react';
 
 export default function LeaderboardPage() {
   const [leaders, setLeaders] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterType, setFilterType] = useState('all'); // 'all', 'xp', 'level', 'co2'
   const [currentUser, setCurrentUser] = useState(null);
   const [showFilters, setShowFilters] = useState(false);
   const [hoveredRank, setHoveredRank] = useState(null);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const [totalUsers, setTotalUsers] = useState(0);
+  const observerRef = useRef(null);
   
   const API_URL = process.env.NEXT_PUBLIC_API_URL;
+
+  // Fetch leaderboard data
+  const fetchLeaderboard = useCallback(async (pageNum, append = false) => {
+    try {
+      if (append) {
+        setLoadingMore(true);
+      } else {
+        setLoading(true);
+      }
+
+      const res = await fetch(`${API_URL}/users/leaderboard?page=${pageNum}&limit=10`);
+      const response = await res.json();
+
+      console.log('Leaderboard Response:', response);
+
+      // Handle both old format (array) and new format (object with pagination)
+      if (Array.isArray(response)) {
+        // Old format - just array of users
+        if (append) {
+          setLeaders(prev => {
+            const existingIds = new Set(prev.map(p => p.id));
+            const newPlayers = response.filter(p => !existingIds.has(p.id));
+            return [...prev, ...newPlayers];
+          });
+        } else {
+          setLeaders(response);
+        }
+        setHasMore(false); // No pagination in old format
+        setTotalUsers(response.length);
+      } else if (response.data && Array.isArray(response.data)) {
+        // New format - object with data and pagination
+        if (append) {
+          setLeaders(prev => {
+            const existingIds = new Set(prev.map(p => p.id));
+            const newPlayers = response.data.filter(p => !existingIds.has(p.id));
+            return [...prev, ...newPlayers];
+          });
+        } else {
+          setLeaders(response.data);
+        }
+        setHasMore(response.pagination?.hasMore || false);
+        setTotalUsers(response.pagination?.totalUsers || response.data.length);
+      } else {
+        // Error response or empty
+        console.error('Unexpected response format:', response);
+        setHasMore(false);
+        setTotalUsers(0);
+      }
+
+      setLoading(false);
+      setLoadingMore(false);
+    } catch (err) {
+      console.error('Leaderboard Fetch Error:', err);
+      setLoading(false);
+      setLoadingMore(false);
+    }
+  }, [API_URL]);
 
   useEffect(() => {
     // Get current user from localStorage
     const userData = JSON.parse(localStorage.getItem('user'));
     setCurrentUser(userData);
 
-    // Fetch leaderboard data
-    fetch(`${API_URL}/users/leaderboard`)
-      .then(res => res.json())
-      .then(data => {
-        setLeaders(data);
-        setLoading(false);
-      })
-      .catch(err => {
-        console.error(err);
-        setLoading(false);
-      });
-  }, [API_URL]);
+    // Fetch initial data
+    fetchLeaderboard(1);
+  }, [fetchLeaderboard]);
+
+  // Reset pagination when search/filter changes
+  useEffect(() => {
+    if (searchQuery || filterType !== 'all') {
+      // When searching/filtering, disable infinite scroll
+      setHasMore(false);
+    }
+  }, [searchQuery, filterType]);
 
   // Filter and search logic
   const filteredLeaders = useMemo(() => {
@@ -63,17 +124,36 @@ export default function LeaderboardPage() {
     return filtered;
   }, [leaders, searchQuery, filterType]);
 
+  // Infinite scroll observer
+  const lastLeaderRef = useCallback((node) => {
+    if (loading || loadingMore) return;
+    if (observerRef.current) observerRef.current.disconnect();
+
+    observerRef.current = new IntersectionObserver(entries => {
+      if (entries[0].isIntersecting && hasMore) {
+        setPage(prev => {
+          const nextPage = prev + 1;
+          fetchLeaderboard(nextPage, true);
+          return nextPage;
+        });
+      }
+    });
+
+    if (node) observerRef.current.observe(node);
+  }, [loading, loadingMore, hasMore, fetchLeaderboard]);
+
   // Stats calculation
   const stats = useMemo(() => {
     if (leaders.length === 0) return null;
     
     return {
-      totalUsers: leaders.length,
+      totalUsers: totalUsers,
+      loadedUsers: leaders.length,
       avgLevel: Math.round(leaders.reduce((sum, p) => sum + p.current_level, 0) / leaders.length),
       totalXP: leaders.reduce((sum, p) => sum + p.total_xp, 0),
       topXP: leaders[0]?.total_xp || 0
     };
-  }, [leaders]);
+  }, [leaders, totalUsers]);
 
   // Find current user rank
   const currentUserRank = useMemo(() => {
@@ -146,6 +226,7 @@ export default function LeaderboardPage() {
                       <span className="text-xs text-blue-600 font-semibold">Total Pengguna</span>
                     </div>
                     <p className="text-xl lg:text-2xl font-bold text-blue-700">{stats.totalUsers}</p>
+                    <p className="text-xs text-blue-500 mt-0.5">{stats.loadedUsers} dimuat</p>
                   </div>
                   <div className="bg-gradient-to-br from-purple-50 to-purple-100 p-3 lg:p-4 rounded-xl border border-purple-200">
                     <div className="flex items-center gap-2 mb-1">
@@ -381,10 +462,12 @@ export default function LeaderboardPage() {
               {filteredLeaders.map((player, index) => {
                 const isCurrentUser = currentUser && player.id === currentUser.id;
                 const rankBadge = getRankBadge(index);
+                const isLastItem = index === filteredLeaders.length - 1;
                 
                 return (
                   <div 
                     key={player.id} 
+                    ref={isLastItem ? lastLeaderRef : null}
                     onMouseEnter={() => setHoveredRank(index)}
                     onMouseLeave={() => setHoveredRank(null)}
                     className={`grid grid-cols-1 lg:grid-cols-12 gap-4 p-4 lg:p-5 items-center transition-all duration-300 cursor-pointer ${getRankStyle(index, isCurrentUser)} ${
@@ -475,6 +558,26 @@ export default function LeaderboardPage() {
                   </div>
                 );
               })}
+            </div>
+          )}
+
+          {/* Loading More Indicator */}
+          {loadingMore && (
+            <div className="p-8 text-center">
+              <div className="inline-flex items-center gap-3 px-6 py-3 bg-gradient-to-r from-emerald-50 to-teal-50 rounded-full border-2 border-emerald-200">
+                <Loader2 className="animate-spin text-emerald-600" size={20} />
+                <span className="text-emerald-700 font-semibold">Memuat lebih banyak...</span>
+              </div>
+            </div>
+          )}
+
+          {/* No More Data Indicator */}
+          {!hasMore && leaders.length > 0 && !loading && (
+            <div className="p-8 text-center">
+              <div className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-gray-50 to-gray-100 rounded-full border-2 border-gray-200">
+                <Trophy className="text-gray-400" size={20} />
+                <span className="text-gray-600 font-semibold">Semua data telah dimuat • {totalUsers} pengguna</span>
+              </div>
             </div>
           )}
         </div>

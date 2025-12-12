@@ -1,9 +1,18 @@
 const db = require('../config/db');
 
-// Ambil Leaderboard (Top 10 XP Tertinggi)
+// Ambil Leaderboard dengan Pagination
 exports.getLeaderboard = async (req, res) => {
     try {
-        const [rows] = await db.execute(`
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 10;
+        const offset = (page - 1) * limit;
+
+        // Get total count
+        const [countResult] = await db.execute('SELECT COUNT(*) as total FROM users');
+        const totalUsers = countResult[0].total;
+
+        // Get paginated data
+        const query = `
             SELECT 
                 u.id, 
                 u.username, 
@@ -15,9 +24,19 @@ exports.getLeaderboard = async (req, res) => {
             LEFT JOIN daily_logs dl ON u.id = dl.user_id
             GROUP BY u.id, u.username, u.current_level, u.total_xp, u.island_health
             ORDER BY u.total_xp DESC 
-            LIMIT 10
-        `);
-        res.json(rows);
+            LIMIT ${limit} OFFSET ${offset}
+        `;
+        const [rows] = await db.execute(query);
+
+        res.json({
+            data: rows,
+            pagination: {
+                currentPage: page,
+                totalPages: Math.ceil(totalUsers / limit),
+                totalUsers: totalUsers,
+                hasMore: offset + rows.length < totalUsers
+            }
+        });
     } catch (error) {
         console.error('Leaderboard Error:', error);
         res.status(500).json({ message: 'Server Error' });
