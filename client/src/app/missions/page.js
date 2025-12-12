@@ -290,11 +290,90 @@ export default function MissionsPage() {
         {/* --- CONDITIONAL CONTENT --- */}
         {activeTab === 'main' && (
           <>
+            {/* Mission Stats Summary */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+              <div className="bg-gradient-to-br from-emerald-50 to-teal-50 p-4 rounded-2xl border-2 border-emerald-100">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-emerald-500 rounded-xl">
+                    <Target className="text-white" size={20} />
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-600 font-semibold">Total Misi</p>
+                    <p className="text-2xl font-black text-emerald-700">{missions.length}</p>
+                  </div>
+                </div>
+              </div>
+              <div className="bg-gradient-to-br from-blue-50 to-indigo-50 p-4 rounded-2xl border-2 border-blue-100">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-blue-500 rounded-xl">
+                    <CheckCircle className="text-white" size={20} />
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-600 font-semibold">Selesai</p>
+                    <p className="text-2xl font-black text-blue-700">{completedMissionsCount}</p>
+                  </div>
+                </div>
+              </div>
+              <div className="bg-gradient-to-br from-purple-50 to-pink-50 p-4 rounded-2xl border-2 border-purple-100">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-purple-500 rounded-xl">
+                    <Zap className="text-white" size={20} />
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-600 font-semibold">Bisa Diklaim</p>
+                    <p className="text-2xl font-black text-purple-700">
+                      {missions.filter(m => m.is_completable && !m.is_claimed).length}
+                    </p>
+                  </div>
+                </div>
+              </div>
+              <div className="bg-gradient-to-br from-yellow-50 to-orange-50 p-4 rounded-2xl border-2 border-yellow-100">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-yellow-500 rounded-xl">
+                    <PartyPopper className="text-white" size={20} />
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-600 font-semibold">Total XP</p>
+                    <p className="text-2xl font-black text-yellow-700">
+                      {missions.reduce((sum, m) => sum + (m.is_claimed ? m.xp_reward : 0), 0)}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
             <h3 className="text-2xl font-bold text-gray-800 mb-6 flex items-center gap-2">
                 <Target className="text-emerald-600"/> Misi Tersedia
             </h3>
         
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* Loading State */}
+        {isLoading ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {[1, 2, 3, 4].map((i) => (
+              <div key={i} className="p-6 rounded-3xl border-2 border-gray-100 bg-white animate-pulse">
+                <div className="flex justify-between items-start mb-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 bg-gray-200 rounded-2xl"></div>
+                    <div className="h-6 w-16 bg-gray-200 rounded-md"></div>
+                  </div>
+                  <div className="h-6 w-20 bg-gray-200 rounded-full"></div>
+                </div>
+                <div className="h-6 w-3/4 bg-gray-200 rounded mb-2"></div>
+                <div className="h-4 w-full bg-gray-200 rounded mb-4"></div>
+                <div className="h-10 w-full bg-gray-200 rounded-xl"></div>
+              </div>
+            ))}
+          </div>
+        ) : missions.length === 0 ? (
+          <div className="text-center py-16">
+            <div className="inline-block p-6 bg-gray-50 rounded-full mb-4">
+              <Target className="text-gray-300" size={64} />
+            </div>
+            <h3 className="text-xl font-bold text-gray-600 mb-2">Tidak Ada Misi Tersedia</h3>
+            <p className="text-gray-500">Misi baru akan segera hadir!</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {missions.map((mission) => (
             <div key={mission.id} className={`p-6 rounded-3xl border-2 relative overflow-hidden transition-all hover:-translate-y-1 duration-300
                 ${mission.is_locked 
@@ -374,7 +453,8 @@ export default function MissionsPage() {
 
             </div>
           ))}
-        </div>
+          </div>
+        )}
           </>
         )}
 

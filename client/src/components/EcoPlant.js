@@ -111,7 +111,7 @@ export default function EcoPlant({ plantHealth = 0 }) {
             </g>
 
             {/* STAGE 4: Bunga Setengah Mekar */}
-            <g className={`transition-all duration-700 ease-out origin-bottom delay-250 ${stage >= 4 ? 'scale-100 opacity-100' : 'scale-0 opacity-0'}`} transform="translate(100, 75)">
+            <g className={`transition-all duration-700 ease-out delay-250 ${stage >= 4 ? 'scale-100 opacity-100' : 'scale-0 opacity-0'}`} transform="translate(100, 75)" style={{ transformOrigin: '100px 155px' }}>
                 <circle cx="0" cy="-25" r="8" fill="#FBBF24" opacity="0.7" />
                 <circle cx="15" cy="-15" r="8" fill="#FBBF24" opacity="0.7" />
                 <circle cx="20" cy="0" r="8" fill="#FBBF24" opacity="0.7" />
@@ -121,34 +121,34 @@ export default function EcoPlant({ plantHealth = 0 }) {
             </g>
 
             {/* STAGE 5: BUNGA MEKAR PENUH */}
-            <g className={`transition-all duration-1000 ease-elastic delay-300 ${stage >= 5 ? 'scale-100 opacity-100' : 'scale-0 opacity-0'}`} transform="translate(100, 70)">
+            <g className={`transition-all duration-700 ease-out delay-250 ${stage >= 5 ? 'scale-100 opacity-100' : 'scale-0 opacity-0'}`} transform="translate(100, 70)" style={{ transformOrigin: '100px 155px' }}>
                 {/* Kelopak Bunga Matahari (Animasi float lebih halus tanpa rotate) */}
                 <g>
-                    <circle cx="0" cy="-25" r="10" fill="#FBBF24">
-                        <animateTransform attributeName="transform" type="scale" values="1;1.1;1" dur="2s" repeatCount="indefinite" />
-                    </circle>
-                    <circle cx="18" cy="-18" r="10" fill="#FBBF24">
-                        <animateTransform attributeName="transform" type="scale" values="1;1.1;1" dur="2s" begin="0.2s" repeatCount="indefinite" />
-                    </circle>
-                    <circle cx="25" cy="0" r="10" fill="#FBBF24">
-                        <animateTransform attributeName="transform" type="scale" values="1;1.1;1" dur="2s" begin="0.4s" repeatCount="indefinite" />
-                    </circle>
-                    <circle cx="18" cy="18" r="10" fill="#FBBF24">
-                        <animateTransform attributeName="transform" type="scale" values="1;1.1;1" dur="2s" begin="0.6s" repeatCount="indefinite" />
-                    </circle>
-                    <circle cx="0" cy="25" r="10" fill="#FBBF24">
-                        <animateTransform attributeName="transform" type="scale" values="1;1.1;1" dur="2s" begin="0.8s" repeatCount="indefinite" />
-                    </circle>
-                    <circle cx="-18" cy="18" r="10" fill="#FBBF24">
-                        <animateTransform attributeName="transform" type="scale" values="1;1.1;1" dur="2s" begin="1s" repeatCount="indefinite" />
-                    </circle>
-                    <circle cx="-25" cy="0" r="10" fill="#FBBF24">
-                        <animateTransform attributeName="transform" type="scale" values="1;1.1;1" dur="2s" begin="1.2s" repeatCount="indefinite" />
-                    </circle>
-                    <circle cx="-18" cy="-18" r="10" fill="#FBBF24">
-                        <animateTransform attributeName="transform" type="scale" values="1;1.1;1" dur="2s" begin="1.4s" repeatCount="indefinite" />
-                    </circle>
-                </g>
+                        <circle cx="0" cy="-25" r="10" fill="#FBBF24">
+                            <animateTransform attributeName="transform" type="scale" values="1;1.1;1" dur="2s" repeatCount="indefinite" additive="sum" />
+                        </circle>
+                        <circle cx="18" cy="-18" r="10" fill="#FBBF24">
+                            <animateTransform attributeName="transform" type="scale" values="1;1.1;1" dur="2s" begin="0.2s" repeatCount="indefinite" additive="sum" />
+                        </circle>
+                        <circle cx="25" cy="0" r="10" fill="#FBBF24">
+                            <animateTransform attributeName="transform" type="scale" values="1;1.1;1" dur="2s" begin="0.4s" repeatCount="indefinite" additive="sum" />
+                        </circle>
+                        <circle cx="18" cy="18" r="10" fill="#FBBF24">
+                            <animateTransform attributeName="transform" type="scale" values="1;1.1;1" dur="2s" begin="0.6s" repeatCount="indefinite" additive="sum" />
+                        </circle>
+                        <circle cx="0" cy="25" r="10" fill="#FBBF24">
+                            <animateTransform attributeName="transform" type="scale" values="1;1.1;1" dur="2s" begin="0.8s" repeatCount="indefinite" additive="sum" />
+                        </circle>
+                        <circle cx="-18" cy="18" r="10" fill="#FBBF24">
+                            <animateTransform attributeName="transform" type="scale" values="1;1.1;1" dur="2s" begin="1s" repeatCount="indefinite" additive="sum" />
+                        </circle>
+                        <circle cx="-25" cy="0" r="10" fill="#FBBF24">
+                            <animateTransform attributeName="transform" type="scale" values="1;1.1;1" dur="2s" begin="1.2s" repeatCount="indefinite" additive="sum" />
+                        </circle>
+                        <circle cx="-18" cy="-18" r="10" fill="#FBBF24">
+                            <animateTransform attributeName="transform" type="scale" values="1;1.1;1" dur="2s" begin="1.4s" repeatCount="indefinite" additive="sum" />
+                        </circle>
+                    </g>
                 {/* Pusat Bunga */}
                 <circle cx="0" cy="0" r="15" fill="#78350F" stroke="#92400E" strokeWidth="2" />
                 
