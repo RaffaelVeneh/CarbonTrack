@@ -73,14 +73,19 @@ export default function MissionsPage() {
             setMissions(updatedMissions);
 
             // Update level info dari response (backend sudah kirim data lengkap)
-            if (result.newLevel) {
-                setLevelInfo(prev => ({
-                    ...prev,
-                    currentLevel: result.newLevel,
-                    currentXP: result.currentXP,
-                    xpProgress: result.currentXP - ((result.newLevel - 1) * prev.xpPerLevel),
-                    progressPercentage: Math.floor(result.xpPercentage)
-                }));
+            if (result.newLevel && result.currentXP !== undefined) {
+                setLevelInfo(prev => {
+                    const xpPerLevel = prev?.xpPerLevel || result.xpPerLevel || 100;
+                    const xpProgress = result.currentXP - ((result.newLevel - 1) * xpPerLevel);
+                    return {
+                        ...prev,
+                        currentLevel: result.newLevel,
+                        currentXP: result.currentXP,
+                        xpProgress: xpProgress,
+                        xpPerLevel: xpPerLevel,
+                        progressPercentage: Math.floor((xpProgress / xpPerLevel) * 100)
+                    };
+                });
             }
 
             const leveledUp = result.leveledUp || false;
