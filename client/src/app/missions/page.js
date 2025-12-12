@@ -20,6 +20,7 @@ export default function MissionsPage() {
   const [isLoading, setIsLoading] = useState(false);
   
   const [notification, setNotification] = useState(null);
+  const [healthNotification, setHealthNotification] = useState(null);
   const [isActivityModalOpen, setIsActivityModalOpen] = useState(false);
   const [targetActivityId, setTargetActivityId] = useState(null);
 
@@ -153,6 +154,7 @@ export default function MissionsPage() {
   }, [API_URL, user, missions, checkBadges, isLoading]);
 
   const closeNotification = useCallback(() => setNotification(null), []);
+  const closeHealthNotification = useCallback(() => setHealthNotification(null), []);
 
   // Memoized computations
   const xpPercentage = useMemo(() => {
@@ -181,10 +183,21 @@ export default function MissionsPage() {
         </Suspense>
       )}
 
+      {/* XP Notification - Top */}
       <NotificationDropdown 
         notification={notification}
         onClose={closeNotification}
       />
+
+      {/* Health Notification - Bottom (stacked) */}
+      {healthNotification && (
+        <div className="fixed top-[450px] right-6 z-[998]">
+          <NotificationDropdown 
+            notification={healthNotification}
+            onClose={closeHealthNotification}
+          />
+        </div>
+      )}
 
       <ActivityModal 
         isOpen={isActivityModalOpen} 
@@ -392,7 +405,7 @@ export default function MissionsPage() {
                 }));
               }
               
-              // Show XP notification
+              // Show XP notification (top)
               if (result.leveledUp) {
                 setShowConfetti(true);
                 setNotification({
@@ -413,14 +426,12 @@ export default function MissionsPage() {
                 });
               }
 
-              // Show plant health notification after 3 seconds
-              setTimeout(() => {
-                setNotification({
-                  type: 'plant_health',
-                  healthAdded: result.healthAdded,
-                  newPlantHealth: result.newPlantHealth,
-                });
-              }, 3000);
+              // Show plant health notification BERSAMAAN (bottom, no delay)
+              setHealthNotification({
+                type: 'plant_health',
+                healthAdded: result.healthAdded,
+                newPlantHealth: result.newPlantHealth,
+              });
 
               // Badge check
               setTimeout(() => {

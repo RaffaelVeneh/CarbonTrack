@@ -6,6 +6,7 @@ import { Clock, Gift, Zap, Target, Calendar } from 'lucide-react';
 export default function DailyMissionsTab({ userId, API_URL, onActivitySelect, onClaimSuccess }) {
     const [dailyMissions, setDailyMissions] = useState([]);
     const [countdown, setCountdown] = useState('');
+    const [secondsRemaining, setSecondsRemaining] = useState(0);
     const [isLoading, setIsLoading] = useState(false);
 
     // Fetch daily missions
@@ -15,7 +16,7 @@ export default function DailyMissionsTab({ userId, API_URL, onActivitySelect, on
             const res = await fetch(`${API_URL}/missions/daily/${userId}`);
             const data = await res.json();
             setDailyMissions(data.missions || []);
-            updateCountdown(data.secondsUntilReset);
+            setSecondsRemaining(data.secondsUntilReset || 0);
         } catch (err) {
             console.error('Fetch daily missions error:', err);
         } finally {
@@ -27,22 +28,31 @@ export default function DailyMissionsTab({ userId, API_URL, onActivitySelect, on
         if (userId) fetchDailyMissions();
     }, [userId, fetchDailyMissions]);
 
-    // Update countdown timer
-    const updateCountdown = (seconds) => {
-        const hours = Math.floor(seconds / 3600);
-        const minutes = Math.floor((seconds % 3600) / 60);
-        const secs = seconds % 60;
-        setCountdown(`${hours}j ${minutes}m ${secs}d`);
-    };
-
-    // Live countdown update
+    // Real-time countdown timer (update every second)
     useEffect(() => {
+        if (secondsRemaining <= 0) return;
+
         const interval = setInterval(() => {
-            fetchDailyMissions(); // Re-fetch untuk update countdown
-        }, 60000); // Update setiap 1 menit
+            setSecondsRemaining(prev => {
+                if (prev <= 1) {
+                    // Reset saat countdown habis
+                    fetchDailyMissions();
+                    return 0;
+                }
+                return prev - 1;
+            });
+        }, 1000); // Update setiap 1 detik
 
         return () => clearInterval(interval);
-    }, [fetchDailyMissions]);
+    }, [secondsRemaining, fetchDailyMissions]);
+
+    // Format countdown display
+    useEffect(() => {
+        const hours = Math.floor(secondsRemaining / 3600);
+        const minutes = Math.floor((secondsRemaining % 3600) / 60);
+        const secs = secondsRemaining % 60;
+        setCountdown(`${hours}j ${minutes}m ${secs}d`);
+    }, [secondsRemaining]);
 
     // Handle claim daily mission
     const handleClaimDaily = async (dailyMissionId) => {
