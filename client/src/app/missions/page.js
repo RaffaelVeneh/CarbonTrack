@@ -4,6 +4,7 @@ import { useEffect, useState, useMemo, useCallback, lazy, Suspense } from 'react
 import Sidebar from '@/components/Sidebar';
 import ActivityModal from '@/components/ActivityModal';
 import NotificationDropdown from '@/components/NotificationDropdown';
+import DailyMissionsTab from '@/components/DailyMissionsTab';
 import { Target, CheckCircle, Lock, Zap, PartyPopper, TrendingUp, ArrowRight } from 'lucide-react';
 import { useBadge } from '@/contexts/BadgeContext';
 
@@ -21,6 +22,10 @@ export default function MissionsPage() {
   const [notification, setNotification] = useState(null);
   const [isActivityModalOpen, setIsActivityModalOpen] = useState(false);
   const [targetActivityId, setTargetActivityId] = useState(null);
+
+  // Tab system for Daily Missions
+  const [activeTab, setActiveTab] = useState('main'); // 'main' or 'daily'
+  const [plantHealth, setPlantHealth] = useState(0);
 
   const { checkBadges } = useBadge();
   const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
@@ -43,10 +48,25 @@ export default function MissionsPage() {
     }
   }, [API_URL]);
 
+  // Fetch plant health
+  const fetchPlantHealth = useCallback(async (userId) => {
+    try {
+      const res = await fetch(`${API_URL}/missions/daily/plant-health/${userId}`);
+      const data = await res.json();
+      console.log('🌻 Fetched plant health:', data);
+      setPlantHealth(data.plant_health || 0);
+    } catch (err) {
+      console.error('Fetch plant health error:', err);
+    }
+  }, [API_URL]);
+
   useEffect(() => {
     const userData = JSON.parse(localStorage.getItem('user'));
     setUser(userData);
-    if (userData) fetchMissions(userData.id);
+    if (userData) {
+      fetchMissions(userData.id);
+      fetchPlantHealth(userData.id);
+    }
   }, []); // Empty deps - only run once on mount
 
   const handleDoMission = useCallback((requiredActivityId) => {
@@ -144,6 +164,11 @@ export default function MissionsPage() {
     return missions.filter(m => m.is_claimed).length;
   }, [missions]);
 
+  // Tab click handler
+  const handleTabSwitch = useCallback((tab) => {
+    setActiveTab(tab);
+  }, []);
+
   if (!user || !levelInfo) return null;
 
   return (
@@ -202,16 +227,49 @@ export default function MissionsPage() {
                     <div className="animate-pulse text-emerald-600">Loading plant...</div>
                   </div>
                 }>
-                  <EcoPlant completedCount={completedMissionsCount} />
+                  <EcoPlant plantHealth={plantHealth} />
                 </Suspense>
             </div>
 
         </div>
 
-        {/* --- LIST MISI --- */}
-        <h3 className="text-2xl font-bold text-gray-800 mb-6 flex items-center gap-2">
-            <Target className="text-emerald-600"/> Misi Tersedia
-        </h3>
+        {/* --- TAB NAVIGATION --- */}
+        <div className="mb-6">
+          <div className="bg-white rounded-2xl p-2 shadow-sm inline-flex gap-2">
+            <button
+              onClick={() => handleTabSwitch('main')}
+              className={`px-6 py-3 rounded-xl font-bold transition-all ${
+                activeTab === 'main'
+                  ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-md'
+                  : 'text-gray-600 hover:bg-gray-50'
+              }`}
+            >
+              <span className="flex items-center gap-2">
+                <Target size={18} />
+                Misi Utama
+              </span>
+            </button>
+            <button
+              onClick={() => handleTabSwitch('daily')}
+              className={`px-6 py-3 rounded-xl font-bold transition-all ${
+                activeTab === 'daily'
+                  ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-md'
+                  : 'text-gray-600 hover:bg-gray-50'
+              }`}
+            >
+              <span className="flex items-center gap-2">
+                ⏰ Misi Harian
+              </span>
+            </button>
+          </div>
+        </div>
+
+        {/* --- CONDITIONAL CONTENT --- */}
+        {activeTab === 'main' && (
+          <>
+            <h3 className="text-2xl font-bold text-gray-800 mb-6 flex items-center gap-2">
+                <Target className="text-emerald-600"/> Misi Tersedia
+            </h3>
         
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {missions.map((mission) => (
@@ -294,6 +352,83 @@ export default function MissionsPage() {
             </div>
           ))}
         </div>
+          </>
+        )}
+
+        {/* --- DAILY MISSIONS TAB --- */}
+        {activeTab === 'daily' && (
+          <DailyMissionsTab 
+            userId={user.id}
+            API_URL={API_URL}
+            onActivitySelect={handleDoMission}
+            onClaimSuccess={(result) => {
+              console.log('🎉 Claim success result:', result);
+              
+              // Update plant health state immediately
+              setPlantHealth(result.newPlantHealth);
+              console.log('🌻 Updated plant health to:', result.newPlantHealth);
+              
+              // Also refresh to ensure data consistency
+              fetchPlantHealth(user.id);
+              
+              // Update level info if XP changed
+              if (result.newXP !== undefined && result.newLevel) {
+                console.log('📊 Updating levelInfo:', {
+                  oldXP: levelInfo?.currentXP,
+                  newXP: result.newXP,
+                  oldLevel: levelInfo?.currentLevel,
+                  newLevel: result.newLevel
+                });
+                
+                const xpPerLevel = levelInfo?.xpPerLevel || 100;
+                const xpProgress = result.newXP - ((result.newLevel - 1) * xpPerLevel);
+                
+                setLevelInfo(prev => ({
+                  ...prev,
+                  currentLevel: result.newLevel,
+                  currentXP: result.newXP,
+                  xpProgress: xpProgress,
+                  progressPercentage: result.xpPercentage || Math.floor((xpProgress / xpPerLevel) * 100)
+                }));
+              }
+              
+              // Show XP notification
+              if (result.leveledUp) {
+                setShowConfetti(true);
+                setNotification({
+                  type: 'level_up',
+                  level: result.newLevel,
+                  message: 'Luar biasa! Kamu berhasil naik level! 🎉',
+                  xpAdded: result.xpAdded,
+                });
+                setTimeout(() => setShowConfetti(false), 5000);
+              } else {
+                setNotification({
+                  type: 'xp_progress',
+                  message: 'Mantap! Misi harian selesai.',
+                  xpAdded: result.xpAdded,
+                  currentXP: result.newXP,
+                  maxXP: levelInfo?.xpPerLevel || 1000,
+                  xpPercentage: result.xpPercentage,
+                });
+              }
+
+              // Show plant health notification after 3 seconds
+              setTimeout(() => {
+                setNotification({
+                  type: 'plant_health',
+                  healthAdded: result.healthAdded,
+                  newPlantHealth: result.newPlantHealth,
+                });
+              }, 3000);
+
+              // Badge check
+              setTimeout(() => {
+                checkBadges(user.id).catch(err => console.error('Badge check error:', err));
+              }, 500);
+            }}
+          />
+        )}
 
       </main>
     </div>

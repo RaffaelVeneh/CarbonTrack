@@ -1,31 +1,33 @@
 'use client';
 
-import { Sparkles } from 'lucide-react';
+import { Sparkles, Heart } from 'lucide-react';
 
-export default function EcoPlant({ completedCount }) {
+export default function EcoPlant({ plantHealth = 0 }) {
   
-  // 1. Logika Tahapan (0 - 4)
-  const getStage = (count) => {
-    if (count === 0) return 0; // Pot Kosong
-    if (count <= 2) return 1;  // Benih Muncul
-    if (count <= 5) return 2;  // Tunas Berdaun
-    if (count <= 9) return 3;  // Kuncup Bunga
-    return 4;                  // Bunga Mekar (Sunflower)
+  // 1. Logika Tahapan berdasarkan health (0-20, 21-40, 41-60, 61-80, 81-100+)
+  const getStage = (health) => {
+    if (health === 0) return 0;      // Pot Kosong (0)
+    if (health <= 20) return 1;      // Benih Muncul (1-20)
+    if (health <= 40) return 2;      // Tunas Hijau (21-40)
+    if (health <= 60) return 3;      // Kuncup Bunga (41-60)
+    if (health <= 80) return 4;      // Siap Berbunga (61-80)
+    return 5;                        // Bunga Mekar (81+)
   };
 
-  const stage = getStage(completedCount);
+  const stage = getStage(plantHealth);
   
-  // Target Misi Berikutnya
-  const getNextGoal = () => {
-    if (stage === 0) return 1;
-    if (stage === 1) return 3;
-    if (stage === 2) return 6;
-    if (stage === 3) return 10;
-    return 10;
+  // Health range untuk setiap stage
+  const getHealthRange = () => {
+    if (stage === 0) return { min: 0, max: 0, next: 20 };
+    if (stage === 1) return { min: 0, max: 20, next: 20 };
+    if (stage === 2) return { min: 21, max: 40, next: 40 };
+    if (stage === 3) return { min: 41, max: 60, next: 60 };
+    if (stage === 4) return { min: 61, max: 80, next: 80 };
+    return { min: 81, max: 100, next: 100 };
   };
 
-  const nextGoal = getNextGoal();
-  const progressPercent = Math.min(100, (completedCount / nextGoal) * 100);
+  const healthRange = getHealthRange();
+  const progressPercent = stage === 0 ? 0 : Math.min(100, ((plantHealth - healthRange.min) / (healthRange.max - healthRange.min)) * 100);
 
   return (
     <div className="bg-white rounded-3xl p-6 shadow-xl border border-emerald-100 flex flex-col h-full relative overflow-hidden">
@@ -34,17 +36,35 @@ export default function EcoPlant({ completedCount }) {
       <div className="absolute inset-0 bg-gradient-to-b from-sky-50 to-white pointer-events-none"></div>
 
       {/* --- HEADER TEKS --- */}
-      <div className="relative z-10 text-center mb-4">
+      <div className="relative z-10 text-center mb-2">
         <h3 className="font-extrabold text-gray-800 text-lg">
             {stage === 0 && "Pot Kosong"}
             {stage === 1 && "Benih Kecil"}
             {stage === 2 && "Tunas Hijau"}
-            {stage === 3 && "Siap Berbunga"}
-            {stage === 4 && "Bunga Matahari"}
+            {stage === 3 && "Kuncup Bunga"}
+            {stage === 4 && "Siap Berbunga"}
+            {stage === 5 && "Bunga Matahari"}
         </h3>
         <p className="text-xs text-gray-500">
-            {stage < 4 ? "Selesaikan misi agar aku tumbuh!" : "Kamu hebat! Panen berhasil."}
+            {stage < 5 ? "Selesaikan misi harian untuk tumbuh!" : "Kamu hebat! Panen berhasil."}
         </p>
+        
+        {/* Health Bar */}
+        <div className="mt-3 flex items-center justify-center gap-2">
+          <Heart className="text-red-500" size={16} fill="currentColor" />
+          <div className="flex-1 max-w-[200px]">
+            <div className="flex justify-between text-[10px] font-bold text-gray-600 mb-1">
+              <span>Nyawa Bunga</span>
+              <span className="text-red-500">{plantHealth} HP</span>
+            </div>
+            <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden border border-gray-300">
+              <div 
+                className="bg-gradient-to-r from-red-500 to-pink-500 h-full transition-all duration-500" 
+                style={{ width: `${Math.min(100, (plantHealth / 100) * 100)}%` }}
+              ></div>
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* --- AREA GAMBAR (SVG TUNGGAL - PRESISI) --- */}
@@ -85,8 +105,18 @@ export default function EcoPlant({ completedCount }) {
                 <circle cx="0" cy="-85" r="8" fill="#86EFAC" />
             </g>
 
-            {/* STAGE 4: BUNGA MEKAR */}
-            <g className={`transition-all duration-1000 ease-elastic delay-300 ${stage >= 4 ? 'scale-100 opacity-100' : 'scale-0 opacity-0'}`} transform="translate(100, 70)">
+            {/* STAGE 4: Bunga Setengah Mekar */}
+            <g className={`transition-all duration-700 ease-out origin-bottom delay-250 ${stage >= 4 ? 'scale-100 opacity-100' : 'scale-0 opacity-0'}`} transform="translate(100, 75)">
+                <circle cx="0" cy="-25" r="8" fill="#FBBF24" opacity="0.7" />
+                <circle cx="15" cy="-15" r="8" fill="#FBBF24" opacity="0.7" />
+                <circle cx="20" cy="0" r="8" fill="#FBBF24" opacity="0.7" />
+                <circle cx="-15" cy="-15" r="8" fill="#FBBF24" opacity="0.7" />
+                <circle cx="-20" cy="0" r="8" fill="#FBBF24" opacity="0.7" />
+                <circle cx="0" cy="0" r="12" fill="#78350F" />
+            </g>
+
+            {/* STAGE 5: BUNGA MEKAR PENUH */}
+            <g className={`transition-all duration-1000 ease-elastic delay-300 ${stage >= 5 ? 'scale-100 opacity-100' : 'scale-0 opacity-0'}`} transform="translate(100, 70)">
                 {/* Kelopak Bunga Matahari (Berputar pelan) */}
                 <g className="animate-spin-slow origin-center">
                     <circle cx="0" cy="-25" r="10" fill="#FBBF24" />
@@ -111,32 +141,36 @@ export default function EcoPlant({ completedCount }) {
 
         </svg>
 
-        {/* Partikel Sparkles (Jika sudah panen) */}
-        {stage === 4 && (
+        {/* Partikel Sparkles (Jika sudah mekar penuh) */}
+        {stage === 5 && (
             <div className="absolute top-10 right-10 animate-pulse">
                 <Sparkles className="text-yellow-400" size={24} />
             </div>
         )}
       </div>
 
-      {/* --- FOOTER: PROGRESS BAR --- */}
+      {/* --- FOOTER: PROGRESS BAR STAGE--- */}
       <div className="relative z-10 mt-auto">
-        {stage < 4 ? (
+        {stage < 5 ? (
             <div>
                 <div className="flex justify-between text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">
-                    <span>Exp Tanaman</span>
-                    <span>{completedCount}/{nextGoal}</span>
+                    <span>Progress Stage</span>
+                    <span>{plantHealth}/{healthRange.next}</span>
                 </div>
                 <div className="w-full bg-gray-100 rounded-full h-3 overflow-hidden border border-gray-200">
                     <div 
-                        className="bg-emerald-500 h-full transition-all duration-700 ease-out" 
+                        className="bg-gradient-to-r from-green-400 to-emerald-500 h-full transition-all duration-700 ease-out" 
                         style={{ width: `${progressPercent}%` }}
                     ></div>
                 </div>
+                <p className="text-[9px] text-gray-400 mt-1 text-center">
+                  {stage === 0 ? "Mulai misi harian untuk tumbuh!" : `${healthRange.next - plantHealth} HP lagi ke stage berikutnya`}
+                </p>
             </div>
         ) : (
             <div className="text-center bg-yellow-100/50 p-2 rounded-xl border border-yellow-200">
-                <p className="text-xs font-bold text-yellow-700">🌻 Siap Panen!</p>
+                <p className="text-xs font-bold text-yellow-700">🌻 Bunga Mekar Sempurna!</p>
+                <p className="text-[9px] text-yellow-600 mt-1">Health: {plantHealth} HP</p>
             </div>
         )}
       </div>

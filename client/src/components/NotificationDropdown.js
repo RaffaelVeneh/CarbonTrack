@@ -13,7 +13,7 @@ export default function NotificationDropdown({ notification, onClose }) {
       
       // Animasi progress bar
       setTimeout(() => {
-        setProgress(notification.xpPercentage || 0);
+        setProgress(notification.xpPercentage || notification.healthPercentage || 0);
       }, 300);
 
       // Auto close setelah 5 detik
@@ -34,7 +34,9 @@ export default function NotificationDropdown({ notification, onClose }) {
 
   if (!notification) return null;
 
-  const isLevelUp = notification.type === 'levelup';
+  const isLevelUp = notification.type === 'level_up';
+  const isPlantHealth = notification.type === 'plant_health';
+  const isXpProgress = notification.type === 'xp_progress';
 
   return (
     <div 
@@ -43,30 +45,38 @@ export default function NotificationDropdown({ notification, onClose }) {
       }`}
     >
       <div className={`bg-white rounded-2xl shadow-2xl w-96 overflow-hidden border-2 ${
-        isLevelUp ? 'border-yellow-300' : 'border-emerald-300'
+        isLevelUp ? 'border-yellow-300' : 
+        isPlantHealth ? 'border-pink-300' : 
+        'border-emerald-300'
       }`}>
         {/* Header */}
         <div className={`p-4 flex items-center justify-between ${
           isLevelUp 
             ? 'bg-gradient-to-r from-yellow-400 to-orange-400' 
+            : isPlantHealth
+            ? 'bg-gradient-to-r from-pink-400 to-purple-400'
             : 'bg-gradient-to-r from-emerald-500 to-teal-500'
         }`}>
           <div className="flex items-center gap-3">
-            <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
-              isLevelUp ? 'bg-white/30' : 'bg-white/30'
-            } backdrop-blur-sm animate-bounce`}>
+            <div className="w-10 h-10 rounded-full flex items-center justify-center bg-white/30 backdrop-blur-sm animate-bounce">
               {isLevelUp ? (
                 <PartyPopper size={20} className="text-white" />
+              ) : isPlantHealth ? (
+                <span className="text-2xl">🌻</span>
               ) : (
                 <CheckCircle size={20} className="text-white" />
               )}
             </div>
             <div>
               <h3 className="text-white font-bold text-lg">
-                {isLevelUp ? '🎉 LEVEL UP!' : '✅ Misi Selesai!'}
+                {isLevelUp ? '🎉 LEVEL UP!' : 
+                 isPlantHealth ? '🌻 Plant Health!' : 
+                 '✅ Misi Selesai!'}
               </h3>
               <p className="text-white/90 text-xs">
-                {isLevelUp ? `Level ${notification.newLevel}` : `+${notification.xpGained} XP`}
+                {isLevelUp ? `Level ${notification.level}` : 
+                 isPlantHealth ? `+${notification.healthAdded} HP` : 
+                 `+${notification.xpAdded} XP`}
               </p>
             </div>
           </div>
@@ -81,11 +91,56 @@ export default function NotificationDropdown({ notification, onClose }) {
         {/* Content */}
         <div className="p-4">
           <p className="text-gray-700 mb-4 font-medium">
-            {notification.message}
+            {notification.message || 
+             (isPlantHealth ? 'Nyawa bunga kamu bertambah!' : 
+              isLevelUp ? `Selamat! Kamu naik ke level ${notification.level}` : 
+              'Misi berhasil diselesaikan!')}
           </p>
 
-          {/* XP Progress Bar - Hanya tampil jika bukan level up */}
-          {!isLevelUp && (
+          {/* Plant Health Progress */}
+          {isPlantHealth && (
+            <div className="space-y-2">
+              <div className="flex justify-between items-center text-xs">
+                <span className="text-gray-500 font-semibold">Plant Health</span>
+                <span className="text-pink-600 font-bold">
+                  {notification.newPlantHealth} HP
+                </span>
+              </div>
+              <div className="relative w-full bg-gray-200 rounded-full h-3 overflow-hidden">
+                <div 
+                  className="absolute inset-0 bg-gradient-to-r from-pink-400 to-purple-400 opacity-20 blur-sm"
+                  style={{ 
+                    width: `${Math.min(notification.newPlantHealth, 100)}%`,
+                    transition: 'width 1s cubic-bezier(0.4, 0, 0.2, 1)'
+                  }}
+                />
+                <div 
+                  className="relative h-full bg-gradient-to-r from-pink-500 to-purple-500 rounded-full shadow-lg transition-all duration-1000 ease-out"
+                  style={{ 
+                    width: `${Math.min(notification.newPlantHealth, 100)}%`,
+                    boxShadow: '0 0 10px rgba(236, 72, 153, 0.5)'
+                  }}
+                >
+                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-shimmer" />
+                </div>
+              </div>
+              <p className="text-xs text-gray-500 text-center">
+                {notification.newPlantHealth >= 100 
+                  ? '🌻 Bunga kamu sangat sehat!' 
+                  : notification.newPlantHealth >= 80 
+                  ? '🌱 Bunga kamu tumbuh subur!'
+                  : notification.newPlantHealth >= 60
+                  ? '🌿 Bunga kamu berkembang baik'
+                  : notification.newPlantHealth >= 40
+                  ? '🪴 Bunga kamu perlu perhatian'
+                  : '🥀 Bunga kamu butuh perawatan'
+                }
+              </p>
+            </div>
+          )}
+
+          {/* XP Progress Bar - Hanya tampil jika bukan level up dan bukan plant health */}
+          {!isLevelUp && !isPlantHealth && (
             <div className="space-y-2">
               <div className="flex justify-between items-center text-xs">
                 <span className="text-gray-500 font-semibold">Progress XP</span>
@@ -146,10 +201,14 @@ export default function NotificationDropdown({ notification, onClose }) {
             className={`w-full py-2.5 rounded-xl font-bold text-white shadow-lg transition-transform active:scale-95 ${
               isLevelUp
                 ? 'bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600'
+                : isPlantHealth
+                ? 'bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600'
                 : 'bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700'
             }`}
           >
-            {isLevelUp ? 'Keren Banget! 🔥' : 'Mantap! 👍'}
+            {isLevelUp ? 'Keren Banget! 🔥' : 
+             isPlantHealth ? 'Yeay! 🌻' : 
+             'Mantap! 👍'}
           </button>
         </div>
       </div>
