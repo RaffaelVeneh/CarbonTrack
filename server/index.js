@@ -14,6 +14,7 @@ const userRoutes = require('./routes/userRoutes'); // <-- TAMBAHAN BARU (Untuk L
 const aiRoutes = require('./routes/aiRoutes');     // <-- TAMBAHAN BARU (Untuk AI Assistant)
 const badgeRoutes = require('./routes/badgeRoutes'); // <-- TAMBAHAN BARU (Untuk Badge System)
 const dailyMissionRoutes = require('./routes/dailyMissionRoutes'); // <-- TAMBAHAN BARU (Untuk Daily Missions)
+const weeklyMissionRoutes = require('./routes/weeklyMissionRoutes'); // <-- TAMBAHAN BARU (Untuk Weekly Missions)
 
 dotenv.config();
 const app = express();
@@ -31,8 +32,9 @@ app.use('/api/users', userRoutes); // <-- TAMBAHAN BARU (Akses: /api/users/leade
 app.use('/api/ai', aiRoutes);       // <-- TAMBAHAN BARU (Akses: /api/ai/ask)
 app.use('/api/badges', badgeRoutes); // <-- TAMBAHAN BARU (Akses: /api/badges)
 
-// PENTING: Daily missions route harus SEBELUM missions route (lebih spesifik)
+// PENTING: Daily missions dan weekly missions route harus SEBELUM missions route (lebih spesifik)
 app.use('/api/missions/daily', dailyMissionRoutes); // <-- Harus di atas /api/missions
+app.use('/api/missions/weekly', weeklyMissionRoutes); // <-- Harus di atas /api/missions
 app.use('/api/missions', missionRoutes); // <-- Wildcard route terakhir
 
 // Test Route

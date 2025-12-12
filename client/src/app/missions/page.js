@@ -5,6 +5,7 @@ import Sidebar from '@/components/Sidebar';
 import ActivityModal from '@/components/ActivityModal';
 import NotificationDropdown from '@/components/NotificationDropdown';
 import DailyMissionsTab from '@/components/DailyMissionsTab';
+import WeeklyMissionsTab from '@/components/WeeklyMissionsTab';
 import { Target, CheckCircle, Lock, Zap, PartyPopper, TrendingUp, ArrowRight } from 'lucide-react';
 import { useBadge } from '@/contexts/BadgeContext';
 
@@ -23,10 +24,11 @@ export default function MissionsPage() {
   const [isActivityModalOpen, setIsActivityModalOpen] = useState(false);
   const [targetActivityId, setTargetActivityId] = useState(null);
 
-  // Tab system for Daily Missions
-  const [activeTab, setActiveTab] = useState('main'); // 'main' or 'daily'
+  // Tab system for Daily and Weekly Missions
+  const [activeTab, setActiveTab] = useState('main'); // 'main', 'daily', or 'weekly'
   const [plantHealth, setPlantHealth] = useState(0);
   const [dailyMissionsRefreshKey, setDailyMissionsRefreshKey] = useState(0);
+  const [weeklyMissionsRefreshKey, setWeeklyMissionsRefreshKey] = useState(0);
 
   const { checkBadges } = useBadge();
   const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
@@ -270,6 +272,18 @@ export default function MissionsPage() {
                 ⏰ Misi Harian
               </span>
             </button>
+            <button
+              onClick={() => handleTabSwitch('weekly')}
+              className={`px-6 py-3 rounded-xl font-bold transition-all ${
+                activeTab === 'weekly'
+                  ? 'bg-gradient-to-r from-blue-500 to-purple-500 text-white shadow-md'
+                  : 'text-gray-600 hover:bg-gray-50'
+              }`}
+            >
+              <span className="flex items-center gap-2">
+                📅 Misi Mingguan
+              </span>
+            </button>
           </div>
         </div>
 
@@ -416,6 +430,68 @@ export default function MissionsPage() {
                 setNotification({
                   type: 'combined',
                   message: 'Mantap! Misi harian selesai.',
+                  xpAdded: result.xpAdded,
+                  healthAdded: result.healthAdded,
+                  currentXP: result.newXP,
+                  maxXP: levelInfo?.xpPerLevel || 1000,
+                  xpPercentage: result.xpPercentage,
+                  newPlantHealth: result.newPlantHealth,
+                });
+              }
+
+              // Badge check
+              setTimeout(() => {
+                checkBadges(user.id).catch(err => console.error('Badge check error:', err));
+              }, 500);
+            }}
+          />
+        )}
+
+        {/* --- WEEKLY MISSIONS TAB --- */}
+        {activeTab === 'weekly' && (
+          <WeeklyMissionsTab 
+            userId={user.id}
+            API_URL={API_URL}
+            onActivitySelect={handleDoMission}
+            refreshKey={weeklyMissionsRefreshKey}
+            onClaimSuccess={(result) => {
+              console.log('🎉 Weekly mission claim success:', result);
+              
+              // Update plant health state immediately
+              setPlantHealth(result.newPlantHealth);
+              console.log('🌻 Updated plant health to:', result.newPlantHealth);
+              
+              // Also refresh to ensure data consistency
+              fetchPlantHealth(user.id);
+              
+              // Update level info if XP changed
+              if (result.newXP !== undefined && result.newLevel) {
+                const xpPerLevel = levelInfo?.xpPerLevel || 100;
+                const xpProgress = result.newXP - ((result.newLevel - 1) * xpPerLevel);
+                
+                setLevelInfo(prev => ({
+                  ...prev,
+                  currentLevel: result.newLevel,
+                  currentXP: result.newXP,
+                  xpProgress: xpProgress,
+                  progressPercentage: result.xpPercentage || Math.floor((xpProgress / xpPerLevel) * 100)
+                }));
+              }
+              
+              // Show notification
+              if (result.leveledUp) {
+                setShowConfetti(true);
+                setNotification({
+                  type: 'level_up',
+                  level: result.newLevel,
+                  message: 'Luar biasa! Kamu berhasil naik level! 🎉',
+                  xpAdded: result.xpAdded,
+                });
+                setTimeout(() => setShowConfetti(false), 5000);
+              } else {
+                setNotification({
+                  type: 'combined',
+                  message: 'Mantap! Misi mingguan selesai.',
                   xpAdded: result.xpAdded,
                   healthAdded: result.healthAdded,
                   currentXP: result.newXP,
