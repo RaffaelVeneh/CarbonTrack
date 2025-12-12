@@ -253,3 +253,34 @@ exports.getHistoryLogs = async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 };
+
+// 5. GET DAILY LOGS (untuk recent activities di dashboard)
+exports.getDailyLogs = async (req, res) => {
+    try {
+        const { userId } = req.params;
+        
+        const [rows] = await db.execute(`
+            SELECT 
+                daily_logs.id,
+                daily_logs.log_date as date,
+                daily_logs.created_at,
+                daily_logs.input_value,
+                daily_logs.carbon_produced as carbon_emission,
+                daily_logs.carbon_saved,
+                activities.activity_name,
+                activities.category,
+                activities.unit,
+                activities.emission_factor
+            FROM daily_logs
+            JOIN activities ON daily_logs.activity_id = activities.id
+            WHERE daily_logs.user_id = ?
+            ORDER BY daily_logs.created_at DESC
+            LIMIT 10
+        `, [userId]);
+        
+        res.json(rows);
+    } catch (error) {
+        console.error("Gagal getDailyLogs:", error);
+        res.status(500).json({ error: error.message });
+    }
+};

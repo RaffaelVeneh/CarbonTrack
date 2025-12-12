@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import Sidebar from '@/components/Sidebar';
 import ActivityModal from '@/components/ActivityModal';
@@ -12,8 +12,12 @@ import normalAnim from '@/assets/lottie/normal.json';
 import deadAnim from '@/assets/lottie/dead.json';
 
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
-// PENTING: Tambahkan 'Flame' di import ini
-import { Leaf, Zap, TrendingDown, Plus, Heart, ShieldCheck, Flame } from 'lucide-react';
+import { 
+  Leaf, Zap, TrendingDown, Plus, Heart, ShieldCheck, Flame, 
+  Trophy, Target, Calendar, Clock, ArrowRight, Sparkles, 
+  TrendingUp, Award, CheckCircle, Activity, AlertCircle,
+  BarChart3, Lightbulb, Star
+} from 'lucide-react';
 
 export default function Dashboard() {
   const router = useRouter();
@@ -26,7 +30,9 @@ export default function Dashboard() {
     todaySaved: 0,
     totalEmission: 0, 
     totalSaved: 0, 
-    graphData: [] 
+    graphData: [],
+    yesterdayEmission: 0,
+    yesterdaySaved: 0
   });
 
   // State Animasi Pohon
@@ -37,10 +43,26 @@ export default function Dashboard() {
     bgColor: 'bg-gray-200' 
   });
 
+  const [recentActivities, setRecentActivities] = useState([]);
+  const [loading, setLoading] = useState(true);
+
   const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
+
+  // Motivational tips array
+  const tips = useMemo(() => [
+    { icon: Lightbulb, text: "Matikan lampu saat tidak digunakan untuk hemat energi!", color: "yellow" },
+    { icon: Leaf, text: "Gunakan transportasi umum untuk kurangi emisi karbon!", color: "green" },
+    { icon: ShieldCheck, text: "Daur ulang sampah plastik untuk jaga lingkungan!", color: "blue" },
+    { icon: Heart, text: "Kurangi penggunaan AC untuk hemat listrik!", color: "red" },
+    { icon: Sparkles, text: "Bawa botol minum sendiri, kurangi sampah plastik!", color: "purple" },
+    { icon: Target, text: "Tanam pohon untuk serap CO2 dan sejukkan bumi!", color: "emerald" }
+  ], []);
+
+  const randomTip = useMemo(() => tips[Math.floor(Math.random() * tips.length)], [tips]);
   
   // FUNGSI 1: Ambil Data Terbaru (Stats + Health User)
   const fetchAllData = useCallback(async (userId) => {
+    setLoading(true);
     try {
       // A. Ambil Statistik
       const resStats = await fetch(`${API_URL}/logs/summary/${userId}`);
@@ -51,6 +73,8 @@ export default function Dashboard() {
         todaySaved: parseFloat(dataStats?.todaySaved || 0),
         totalEmission: parseFloat(dataStats?.totalEmission || 0),
         totalSaved: parseFloat(dataStats?.totalSaved || 0),
+        yesterdayEmission: parseFloat(dataStats?.yesterdayEmission || 0),
+        yesterdaySaved: parseFloat(dataStats?.yesterdaySaved || 0),
         graphData: []
       };
       
@@ -63,28 +87,42 @@ export default function Dashboard() {
       }
       setStats(normalizedStats);
 
-      // B. Ambil Profil User TERBARU (Health & Level & Streak)
+      // B. Ambil Recent Activities
+      try {
+        const resActivities = await fetch(`${API_URL}/logs/daily/${userId}`);
+        if (resActivities.ok) {
+          const dataActivities = await resActivities.json();
+          if (Array.isArray(dataActivities)) {
+            setRecentActivities(dataActivities.slice(0, 5)); // Ambil 5 terakhir
+          }
+        } else {
+          console.log('Recent activities endpoint not available yet');
+          setRecentActivities([]);
+        }
+      } catch (err) {
+        console.log('Failed to fetch recent activities:', err.message);
+        setRecentActivities([]);
+      }
+
+      // C. Ambil Profil User TERBARU (Health & Level & Streak)
       const resUser = await fetch(`${API_URL}/users/profile/${userId}`);
       const dataUser = await resUser.json();
       
       if (resUser.ok && dataUser.user) {
-        // Update State User di Layar (biar langsung berubah)
         const updatedUser = { 
             ...user, 
-            ...dataUser.user, // Gabungkan data lama dengan data baru dari server
+            ...dataUser.user,
             level: dataUser.user.current_level || dataUser.user.level 
         };
         setUser(updatedUser);
-
-        // Update LocalStorage (Supaya kalau di-refresh tetap data baru)
         localStorage.setItem('user', JSON.stringify(updatedUser));
-
-        // Update Pohon
         updateTreeUI(dataUser.user.island_health);
       }
 
     } catch (error) {
       console.error("Gagal ambil data", error);
+    } finally {
+      setLoading(false);
     }
   }, [API_URL, user]); 
 
@@ -157,127 +195,379 @@ export default function Dashboard() {
     }
   }, []); 
 
+  // Calculated Stats
+  const netImpact = useMemo(() => stats.totalSaved - stats.totalEmission, [stats]);
+  const todayComparison = useMemo(() => {
+    const diff = stats.todayEmission - stats.yesterdayEmission;
+    return { value: Math.abs(diff), isIncrease: diff > 0 };
+  }, [stats]);
+  const xpToNextLevel = useMemo(() => {
+    if (!user) return 0;
+    const currentLevel = user.current_level || user.level || 1;
+    return currentLevel * 100;
+  }, [user]);
+  const xpProgress = useMemo(() => {
+    if (!user) return 0;
+    return Math.min(100, ((user.total_xp || 0) / xpToNextLevel) * 100);
+  }, [user, xpToNextLevel]);
+
   if (!user) return null;
 
   return (
-    <div className="min-h-screen bg-gray-50 flex font-sans">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-emerald-50/10 to-blue-50/20 flex font-sans">
       <Sidebar />
 
       <main className="flex-1 ml-64 p-8">
-        <div className="flex justify-between items-center mb-8">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-800">Halo, {user.username}! 👋</h1>
-            <p className="text-gray-500">Statistik jejak karbon real-time kamu.</p>
-          </div>
+        {/* Enhanced Header */}
+        <div className="mb-8 relative z-10">
+          <div className="relative overflow-visible">
+            <div className="absolute inset-0 bg-gradient-to-r from-emerald-400/10 via-teal-400/10 to-blue-400/10 animate-gradient"></div>
+            <div className="relative bg-white/80 backdrop-blur-sm p-8 rounded-3xl shadow-xl border-2 border-white overflow-visible">
+              <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6">
+                <div className="flex items-center gap-4">
+                  <div className="relative">
+                    <div className="absolute inset-0 bg-emerald-400 blur-xl opacity-50 animate-pulse"></div>
+                    <div className="relative w-16 h-16 bg-gradient-to-br from-emerald-400 to-teal-500 text-white rounded-2xl shadow-xl flex items-center justify-center text-2xl font-bold">
+                      {user.username.charAt(0).toUpperCase()}
+                    </div>
+                    {/* Level Badge */}
+                    <div className="absolute -bottom-2 -right-2 bg-gradient-to-r from-blue-500 to-indigo-600 text-white text-xs font-bold px-2 py-1 rounded-lg shadow-lg border-2 border-white">
+                      Lvl {user.level || user.current_level || 1}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-3 mb-1">
+                      <h1 className="text-4xl font-extrabold bg-gradient-to-r from-emerald-600 via-teal-600 to-blue-600 bg-clip-text text-transparent">
+                        Halo, {user.username}! 👋
+                      </h1>
+                      <div className="flex items-center gap-2 px-3 py-1.5 bg-gradient-to-r from-blue-100 to-indigo-100 rounded-full border-2 border-blue-200">
+                        <Award className="text-blue-600" size={18} />
+                        <span className="text-sm font-bold text-blue-700">Level {user.level || user.current_level || 1}</span>
+                      </div>
+                    </div>
+                    <p className="text-gray-600 font-medium">Selamat datang di dashboard carbon tracking kamu</p>
+                  </div>
+                </div>
           
-          <div className="flex items-center gap-4">
+                <div className="flex items-center gap-4">
             
-            {/* --- 🔥 KOMPONEN STREAK 🔥 --- */}
-            <div className={`flex items-center gap-2 px-4 py-2 rounded-full border-2 transition-all cursor-help relative group select-none
-                ${isStreakActiveToday() 
-                    ? 'bg-orange-50 border-orange-200 text-orange-500' // Kalo Aktif: Oranye
-                    : 'bg-gray-100 border-gray-200 text-gray-400 grayscale' // Kalo Belum: Abu-abu
-                }`}
-            >
-                {/* Ikon Api */}
-                <div className={`text-2xl ${isStreakActiveToday() ? 'animate-bounce drop-shadow-md' : ''}`}>
-                    <Flame fill={isStreakActiveToday() ? "currentColor" : "none"} />
-                </div>
-                
-                {/* Angka Streak */}
-                <div className="flex flex-col leading-none">
-                    <span className="text-xl font-black font-mono">{user.current_streak || 0}</span>
-                    <span className="text-[10px] font-bold uppercase tracking-wider opacity-80">Hari</span>
-                </div>
+                  {/* Enhanced Streak Badge */}
+                  <div className={`flex items-center gap-3 px-5 py-3 rounded-2xl border-2 transition-all cursor-help relative group select-none shadow-lg z-50
+                      ${isStreakActiveToday() 
+                          ? 'bg-gradient-to-br from-orange-400 to-red-500 border-orange-300 text-white' 
+                          : 'bg-gray-100 border-gray-200 text-gray-400 grayscale'
+                      }`}
+                  >
+                      <div className={`text-3xl ${isStreakActiveToday() ? 'animate-bounce drop-shadow-md' : ''}`}>
+                          <Flame fill={isStreakActiveToday() ? "currentColor" : "none"} size={32} />
+                      </div>
+                      
+                      <div className="flex flex-col leading-none">
+                          <span className="text-3xl font-black font-mono">{user.current_streak || 0}</span>
+                          <span className="text-xs font-bold uppercase tracking-wider opacity-90">Hari Beruntun</span>
+                      </div>
 
-                {/* Tooltip Hover */}
-                <div className="absolute top-full mt-3 right-0 w-48 bg-gray-800 text-white text-xs p-3 rounded-xl shadow-xl opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50">
-                    {isStreakActiveToday() 
-                        ? "Hebat! Streak kamu aman hari ini. 🔥" 
-                        : "Kamu belum mencatat aktivitas hari ini! Awas streak-nya hangus! 😱"}
-                    {/* Panah Tooltip */}
-                    <div className="absolute -top-1 right-6 w-2 h-2 bg-gray-800 transform rotate-45"></div>
+                      <div className="absolute top-full mt-3 right-0 w-56 bg-gray-800 text-white text-xs p-3 rounded-xl shadow-2xl opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-[9999]">
+                          {isStreakActiveToday() 
+                              ? "🔥 Mantap! Streak kamu aman hari ini!" 
+                              : "⚠️ Catat aktivitas sekarang agar streak tidak hangus!"}
+                          <div className="absolute -top-1 right-6 w-2 h-2 bg-gray-800 transform rotate-45"></div>
+                      </div>
+                  </div>
+
+                  <button 
+                      onClick={() => setIsModalOpen(true)}
+                      className="bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white px-6 py-3 rounded-2xl flex items-center gap-2 shadow-xl transition transform hover:scale-105 font-bold"
+                  >
+                      <Plus size={22} /> Catat Aktivitas
+                  </button>
                 </div>
+              </div>
             </div>
-            {/* ------------------------------------------- */}
+          </div>
+        </div>
 
+        {/* Enhanced Status Pulau + Level Progress */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+          {/* Status Pulau Virtual */}
+          <div className="lg:col-span-2 bg-white rounded-3xl shadow-lg border border-emerald-100 p-8 relative overflow-hidden">
+              <div className="absolute inset-0 bg-gradient-to-br from-emerald-50/50 to-blue-50/50"></div>
+              <div className="flex flex-col md:flex-row items-center gap-8 relative z-10">
+                  <div className="w-48 h-48 flex-shrink-0 bg-gradient-to-br from-blue-100 to-emerald-100 rounded-full flex items-center justify-center border-4 border-white shadow-xl overflow-hidden">
+                      {treeConfig.anim ? (
+                          <Lottie animationData={treeConfig.anim} loop={true} style={{ width: 160, height: 160 }} />
+                      ) : (
+                          <div className="animate-pulse bg-gray-200 w-full h-full"></div>
+                      )}
+                  </div>
+
+                  <div className="flex-1 text-center md:text-left">
+                      <div className="flex items-center gap-2 mb-2">
+                        <h2 className="text-2xl font-bold text-gray-800">Status Pulau Virtual</h2>
+                        {user.island_health >= 80 && <Sparkles className="text-yellow-500" size={24} />}
+                      </div>
+                      <p className={`text-lg font-semibold mb-6 ${treeConfig.color}`}>
+                          "{treeConfig.text}"
+                      </p>
+                      
+                      {/* Health Bar */}
+                      <div className="space-y-4">
+                        <div>
+                          <div className="flex items-center justify-between mb-2">
+                            <div className="flex items-center gap-2">
+                              <Heart className="text-red-500 animate-pulse" fill="currentColor" size={20} />
+                              <span className="text-sm font-bold text-gray-600">Nyawa Pulau</span>
+                            </div>
+                            <span className="font-bold text-gray-700">{user.island_health} HP</span>
+                          </div>
+                          <div className="h-4 bg-gray-200 rounded-full overflow-hidden border border-gray-300 shadow-inner">
+                              <div 
+                                  className={`h-full transition-all duration-1000 ease-out ${treeConfig.bgColor}`} 
+                                  style={{ width: `${user.island_health}%` }}
+                              ></div>
+                          </div>
+                        </div>
+
+                        {/* XP Progress */}
+                        <div>
+                          <div className="flex items-center justify-between mb-2">
+                            <div className="flex items-center gap-2">
+                              <Zap className="text-yellow-500" fill="currentColor" size={20} />
+                              <span className="text-sm font-bold text-gray-600">XP Progress</span>
+                            </div>
+                            <span className="font-bold text-gray-700">{user.total_xp || 0} / {xpToNextLevel} XP</span>
+                          </div>
+                          <div className="h-4 bg-gray-200 rounded-full overflow-hidden border border-gray-300 shadow-inner">
+                              <div 
+                                  className="h-full bg-gradient-to-r from-yellow-400 to-orange-500 transition-all duration-1000 ease-out" 
+                                  style={{ width: `${xpProgress}%` }}
+                              ></div>
+                          </div>
+                          <p className="text-xs text-gray-500 mt-1 text-right">
+                            {Math.round(xpToNextLevel - (user.total_xp || 0))} XP lagi ke Level {(user.current_level || user.level || 1) + 1}
+                          </p>
+                        </div>
+                      </div>
+                  </div>
+              </div>
+          </div>
+
+          {/* Quick Actions + Tip */}
+          <div className="space-y-6">
+            {/* Quick Actions */}
+            <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-6">
+              <h3 className="font-bold text-gray-800 mb-4 flex items-center gap-2">
+                <Zap className="text-yellow-500" size={20} />
+                Quick Actions
+              </h3>
+              <div className="space-y-2">
+                <button 
+                  onClick={() => router.push('/missions')}
+                  className="w-full flex items-center justify-between p-3 bg-gradient-to-r from-emerald-50 to-teal-50 hover:from-emerald-100 hover:to-teal-100 rounded-xl transition-all group border border-emerald-200"
+                >
+                  <div className="flex items-center gap-3">
+                    <Target className="text-emerald-600" size={20} />
+                    <span className="font-semibold text-gray-700">Lihat Misi</span>
+                  </div>
+                  <ArrowRight className="text-emerald-600 group-hover:translate-x-1 transition-transform" size={18} />
+                </button>
+                <button 
+                  onClick={() => router.push('/history')}
+                  className="w-full flex items-center justify-between p-3 bg-gradient-to-r from-blue-50 to-indigo-50 hover:from-blue-100 hover:to-indigo-100 rounded-xl transition-all group border border-blue-200"
+                >
+                  <div className="flex items-center gap-3">
+                    <Clock className="text-blue-600" size={20} />
+                    <span className="font-semibold text-gray-700">Riwayat</span>
+                  </div>
+                  <ArrowRight className="text-blue-600 group-hover:translate-x-1 transition-transform" size={18} />
+                </button>
+                <button 
+                  onClick={() => router.push('/leaderboard')}
+                  className="w-full flex items-center justify-between p-3 bg-gradient-to-r from-yellow-50 to-orange-50 hover:from-yellow-100 hover:to-orange-100 rounded-xl transition-all group border border-yellow-200"
+                >
+                  <div className="flex items-center gap-3">
+                    <Trophy className="text-yellow-600" size={20} />
+                    <span className="font-semibold text-gray-700">Leaderboard</span>
+                  </div>
+                  <ArrowRight className="text-yellow-600 group-hover:translate-x-1 transition-transform" size={18} />
+                </button>
+              </div>
+            </div>
+
+            {/* Daily Tip */}
+            <div className={`bg-gradient-to-br from-${randomTip.color}-50 to-${randomTip.color}-100 rounded-2xl shadow-lg border-2 border-${randomTip.color}-200 p-6`}>
+              <div className="flex items-start gap-3">
+                <div className={`p-2 bg-${randomTip.color}-200 rounded-lg`}>
+                  <randomTip.icon className={`text-${randomTip.color}-700`} size={24} />
+                </div>
+                <div>
+                  <h3 className="font-bold text-gray-800 mb-1 flex items-center gap-2">
+                    💡 Tip Hari Ini
+                  </h3>
+                  <p className="text-sm text-gray-700 leading-relaxed">{randomTip.text}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Enhanced Stats Cards dengan Animasi & Comparison */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+          {/* Total Emisi */}
+          <div className="bg-white p-6 rounded-2xl shadow-lg border-2 border-red-100 hover:shadow-xl transition-all duration-300 hover:scale-105 relative overflow-hidden group">
+            <div className="absolute inset-0 bg-gradient-to-br from-red-50 to-orange-50 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+            <div className="relative z-10">
+              <div className="flex items-center justify-between mb-3">
+                <div className="p-3 bg-gradient-to-br from-red-400 to-orange-500 text-white rounded-xl shadow-md">
+                  <Leaf size={24} />
+                </div>
+                <AlertCircle className="text-red-300" size={18} />
+              </div>
+              <p className="text-sm text-gray-500 font-semibold mb-1">Total Emisi</p>
+              <h3 className="text-3xl font-extrabold text-gray-800">{stats.totalEmission.toFixed(1)} <span className="text-sm font-normal text-gray-400">kg</span></h3>
+              <p className="text-xs text-gray-400 mt-2">Sepanjang waktu</p>
+            </div>
+          </div>
+
+          {/* Emisi Hari Ini + Comparison */}
+          <div className="bg-white p-6 rounded-2xl shadow-lg border-2 border-orange-100 hover:shadow-xl transition-all duration-300 hover:scale-105 relative overflow-hidden group">
+            <div className="absolute inset-0 bg-gradient-to-br from-orange-50 to-yellow-50 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+            <div className="relative z-10">
+              <div className="flex items-center justify-between mb-3">
+                <div className="p-3 bg-gradient-to-br from-orange-400 to-yellow-500 text-white rounded-xl shadow-md">
+                  <TrendingDown size={24} />
+                </div>
+                {todayComparison.isIncrease ? (
+                  <TrendingUp className="text-orange-500" size={18} />
+                ) : (
+                  <TrendingDown className="text-green-500" size={18} />
+                )}
+              </div>
+              <p className="text-sm text-gray-500 font-semibold mb-1">Emisi Hari Ini</p>
+              <h3 className="text-3xl font-extrabold text-gray-800">{stats.todayEmission.toFixed(1)} <span className="text-sm font-normal text-gray-400">kg</span></h3>
+              <div className="flex items-center gap-1 mt-2">
+                <span className={`text-xs font-bold ${todayComparison.isIncrease ? 'text-orange-600' : 'text-green-600'}`}>
+                  {todayComparison.isIncrease ? '+' : '-'}{todayComparison.value.toFixed(1)} kg
+                </span>
+                <span className="text-xs text-gray-400">vs kemarin</span>
+              </div>
+            </div>
+          </div>
+
+          {/* CO2 Saved */}
+          <div className="bg-white p-6 rounded-2xl shadow-lg border-2 border-emerald-100 hover:shadow-xl transition-all duration-300 hover:scale-105 relative overflow-hidden group">
+            <div className="absolute inset-0 bg-gradient-to-br from-emerald-50 to-teal-50 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+            <div className="relative z-10">
+              <div className="flex items-center justify-between mb-3">
+                <div className="p-3 bg-gradient-to-br from-emerald-400 to-teal-500 text-white rounded-xl shadow-md">
+                  <ShieldCheck size={24} />
+                </div>
+                <CheckCircle className="text-emerald-500" size={18} />
+              </div>
+              <p className="text-sm text-gray-500 font-semibold mb-1">CO2 Hemat</p>
+              <h3 className="text-3xl font-extrabold text-emerald-600">{stats.totalSaved.toFixed(1)} <span className="text-sm font-normal text-emerald-400">kg</span></h3>
+              <div className="flex items-center gap-1 mt-2">
+                <span className={`text-xs font-bold ${netImpact >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                  Net: {netImpact >= 0 ? '+' : ''}{netImpact.toFixed(1)} kg
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Level + XP */}
+          <div className="bg-white p-6 rounded-2xl shadow-lg border-2 border-blue-100 hover:shadow-xl transition-all duration-300 hover:scale-105 relative overflow-hidden group">
+            <div className="absolute inset-0 bg-gradient-to-br from-blue-50 to-indigo-50 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+            <div className="relative z-10">
+              <div className="flex items-center justify-between mb-3">
+                <div className="p-3 bg-gradient-to-br from-blue-400 to-indigo-500 text-white rounded-xl shadow-md">
+                  <Award size={24} />
+                </div>
+                <Star className="text-yellow-400 fill-yellow-400 animate-pulse" size={20} />
+              </div>
+              <p className="text-sm text-gray-500 font-semibold mb-1">Level Kamu</p>
+              <h3 className="text-3xl font-extrabold text-gray-800">Level {user.level || user.current_level || 1}</h3>
+              <p className="text-xs text-gray-400 mt-2">{user.total_xp || 0} Total XP</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Recent Activities Timeline */}
+        <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-6 mb-8">
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2">
+              <Activity className="text-emerald-500" size={24} />
+              Aktivitas Terbaru
+            </h2>
             <button 
-                onClick={() => setIsModalOpen(true)}
-                className="bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2.5 rounded-full flex items-center gap-2 shadow-lg transition transform hover:scale-105"
+              onClick={() => router.push('/history')}
+              className="text-sm text-emerald-600 hover:text-emerald-700 font-semibold flex items-center gap-1"
             >
-                <Plus size={20} /> Catat Aktivitas
+              Lihat Semua
+              <ArrowRight size={16} />
             </button>
           </div>
-        </div>
 
-        {/* --- AREA POHON DIGITAL --- */}
-        <div className="bg-white rounded-3xl shadow-lg border border-emerald-100 p-8 mb-8 relative overflow-hidden">
-            <div className="flex flex-col md:flex-row items-center gap-8 relative z-10">
-                <div className="w-48 h-48 flex-shrink-0 bg-blue-50 rounded-full flex items-center justify-center border-4 border-white shadow-xl overflow-hidden">
-                    {treeConfig.anim ? (
-                        <Lottie animationData={treeConfig.anim} loop={true} style={{ width: 160, height: 160 }} />
-                    ) : (
-                        <div className="animate-pulse bg-gray-200 w-full h-full"></div>
-                    )}
-                </div>
-
-                <div className="flex-1 text-center md:text-left">
-                    <h2 className="text-2xl font-bold text-gray-800 mb-2">Status Pulau Virtual</h2>
-                    <p className={`text-lg font-semibold mb-4 ${treeConfig.color}`}>
-                        "{treeConfig.text}"
-                    </p>
-                    
-                    <div className="flex items-center gap-3">
-                        <Heart className="text-red-500 animate-pulse" fill="currentColor" size={24} />
-                        <div className="flex-1 h-6 bg-gray-200 rounded-full overflow-hidden border border-gray-100 shadow-inner">
-                            <div 
-                                className={`h-full transition-all duration-1000 ease-out ${treeConfig.bgColor}`} 
-                                style={{ width: `${user.island_health}%` }}
-                            ></div>
-                        </div>
-                        <span className="font-bold text-gray-700 w-12">{user.island_health}%</span>
+          {loading ? (
+            <div className="text-center py-8 text-gray-400">
+              <div className="animate-spin rounded-full h-8 w-8 border-4 border-emerald-200 border-t-emerald-500 mx-auto"></div>
+            </div>
+          ) : recentActivities.length === 0 ? (
+            <div className="text-center py-8">
+              <Calendar className="mx-auto text-gray-300 mb-2" size={40} />
+              <p className="text-gray-400 text-sm">Belum ada aktivitas tercatat</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {recentActivities.map((activity, index) => {
+                const isSaved = parseFloat(activity.carbon_saved || 0) > 0;
+                return (
+                  <div 
+                    key={activity.id || index}
+                    className={`flex items-center gap-4 p-4 rounded-xl border-2 transition-all hover:shadow-md ${
+                      isSaved 
+                        ? 'bg-emerald-50/50 border-emerald-200' 
+                        : 'bg-red-50/50 border-red-200'
+                    }`}
+                  >
+                    <div className={`p-2 rounded-lg ${
+                      isSaved ? 'bg-emerald-500' : 'bg-red-500'
+                    }`}>
+                      {isSaved ? (
+                        <ShieldCheck className="text-white" size={20} />
+                      ) : (
+                        <Leaf className="text-white" size={20} />
+                      )}
                     </div>
-                </div>
+                    <div className="flex-1 min-w-0">
+                      <h4 className="font-bold text-gray-800 truncate">{activity.activity_name}</h4>
+                      <p className="text-xs text-gray-500">
+                        {new Date(activity.date).toLocaleDateString('id-ID', { 
+                          day: 'numeric', 
+                          month: 'short',
+                          hour: '2-digit',
+                          minute: '2-digit'
+                        })}
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <p className={`font-bold text-lg ${
+                        isSaved ? 'text-emerald-600' : 'text-red-600'
+                      }`}>
+                        {isSaved ? '-' : '+'}{isSaved ? activity.carbon_saved : activity.carbon_emission} kg
+                      </p>
+                      <p className="text-xs text-gray-500">
+                        {activity.input_value} {activity.unit}
+                      </p>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
+          )}
         </div>
 
-        {/* --- KARTU STATISTIK --- */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-            <div className="flex items-center gap-3 mb-2">
-              <div className="p-2 bg-red-50 text-red-500 rounded-lg"><Leaf size={20} /></div>
-              <p className="text-sm text-gray-500 font-medium">Total Emisi</p>
-            </div>
-            <h3 className="text-2xl font-bold text-gray-800">{stats.totalEmission} <span className="text-sm font-normal text-gray-400">kg</span></h3>
-          </div>
-
-          <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-            <div className="flex items-center gap-3 mb-2">
-              <div className="p-2 bg-orange-50 text-orange-500 rounded-lg"><TrendingDown size={20} /></div>
-              <p className="text-sm text-gray-500 font-medium">Emisi Hari Ini</p>
-            </div>
-            <h3 className="text-2xl font-bold text-gray-800">{stats.todayEmission} <span className="text-sm font-normal text-gray-400">kg</span></h3>
-          </div>
-
-          <div className="bg-white p-6 rounded-2xl shadow-sm border border-emerald-100">
-              <div className="flex items-center gap-3 mb-2">
-              <div className="p-2 bg-emerald-50 text-emerald-600 rounded-lg"><ShieldCheck size={20} /></div>
-              <p className="text-sm text-gray-500 font-medium">Cegah Polusi</p>
-              </div>
-              <h3 className="text-2xl font-bold text-emerald-600">{parseFloat(stats.totalSaved).toFixed(2)} <span className="text-sm font-normal text-emerald-400">kg</span></h3>
-          </div>
-
-          <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-            <div className="flex items-center gap-3 mb-2">
-              <div className="p-2 bg-blue-50 text-blue-500 rounded-lg"><Zap size={20} /></div>
-              <p className="text-sm text-gray-500 font-medium">Level Kamu</p>
-            </div>
-            <h3 className="text-2xl font-bold text-gray-800">Lvl {user.level || user.current_level || 1}</h3>
-          </div>
-        </div>
-
-        {/* --- GRAFIK MERAH VS HIJAU --- */}
-        <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 mb-8">
+        {/* Enhanced Graph */}
+        <div className="bg-white p-6 rounded-2xl shadow-lg border border-gray-200 mb-8">
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-lg font-bold text-gray-800">Tren Jejak Karbon</h2>
               <div className="flex gap-4 text-sm">
