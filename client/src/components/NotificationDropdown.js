@@ -37,6 +37,7 @@ export default function NotificationDropdown({ notification, onClose }) {
   const isLevelUp = notification.type === 'level_up';
   const isPlantHealth = notification.type === 'plant_health';
   const isXpProgress = notification.type === 'xp_progress';
+  const isCombined = notification.type === 'combined'; // XP + Health together
 
   return (
     <div 
@@ -53,6 +54,8 @@ export default function NotificationDropdown({ notification, onClose }) {
         <div className={`p-4 flex items-center justify-between ${
           isLevelUp 
             ? 'bg-gradient-to-r from-yellow-400 to-orange-400' 
+            : isCombined
+            ? 'bg-gradient-to-r from-purple-500 via-pink-500 to-emerald-500'
             : isPlantHealth
             ? 'bg-gradient-to-r from-pink-400 to-purple-400'
             : 'bg-gradient-to-r from-emerald-500 to-teal-500'
@@ -70,11 +73,13 @@ export default function NotificationDropdown({ notification, onClose }) {
             <div>
               <h3 className="text-white font-bold text-lg">
                 {isLevelUp ? '🎉 LEVEL UP!' : 
+                 isCombined ? '🎁 Reward Diterima!' :
                  isPlantHealth ? '🌻 Plant Health!' : 
                  '✅ Misi Selesai!'}
               </h3>
               <p className="text-white/90 text-xs">
                 {isLevelUp ? `Level ${notification.level}` : 
+                 isCombined ? `+${notification.xpAdded} XP & +${notification.healthAdded} HP` :
                  isPlantHealth ? `+${notification.healthAdded} HP` : 
                  `+${notification.xpAdded} XP`}
               </p>
@@ -92,13 +97,85 @@ export default function NotificationDropdown({ notification, onClose }) {
         <div className="p-4">
           <p className="text-gray-700 mb-4 font-medium">
             {notification.message || 
-             (isPlantHealth ? 'Nyawa bunga kamu bertambah!' : 
+             (isCombined ? 'Misi harian selesai! Reward diterima!' :
+              isPlantHealth ? 'Nyawa bunga kamu bertambah!' : 
               isLevelUp ? `Selamat! Kamu naik ke level ${notification.level}` : 
               'Misi berhasil diselesaikan!')}
           </p>
 
+          {/* Combined XP + Health Grid Layout */}
+          {isCombined && (
+            <div className="grid grid-cols-1 gap-4">
+              {/* XP Progress - Top */}
+              <div className="space-y-2">
+                <div className="flex justify-between items-center text-xs">
+                  <span className="text-gray-500 font-semibold flex items-center gap-1">
+                    <Zap size={14} className="text-emerald-500" /> XP Progress
+                  </span>
+                  <span className="text-emerald-600 font-bold">
+                    {notification.currentXP} / {notification.maxXP} XP
+                  </span>
+                </div>
+                <div className="relative w-full bg-gray-200 rounded-full h-3 overflow-hidden">
+                  <div 
+                    className="absolute inset-0 bg-gradient-to-r from-emerald-400 to-teal-400 opacity-20 blur-sm"
+                    style={{ 
+                      width: `${notification.xpPercentage}%`,
+                      transition: 'width 1s cubic-bezier(0.4, 0, 0.2, 1)'
+                    }}
+                  />
+                  <div 
+                    className="relative h-full bg-gradient-to-r from-emerald-500 to-teal-500 rounded-full shadow-lg transition-all duration-1000 ease-out"
+                    style={{ 
+                      width: `${notification.xpPercentage}%`,
+                      boxShadow: '0 0 10px rgba(16, 185, 129, 0.5)'
+                    }}
+                  >
+                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-shimmer" />
+                  </div>
+                </div>
+                <p className="text-xs text-emerald-600 font-semibold text-center">
+                  +{notification.xpAdded} XP
+                </p>
+              </div>
+
+              {/* Health Progress - Bottom */}
+              <div className="space-y-2">
+                <div className="flex justify-between items-center text-xs">
+                  <span className="text-gray-500 font-semibold flex items-center gap-1">
+                    <span className="text-base">🌻</span> Plant Health
+                  </span>
+                  <span className="text-pink-600 font-bold">
+                    {notification.newPlantHealth} HP
+                  </span>
+                </div>
+                <div className="relative w-full bg-gray-200 rounded-full h-3 overflow-hidden">
+                  <div 
+                    className="absolute inset-0 bg-gradient-to-r from-pink-400 to-purple-400 opacity-20 blur-sm"
+                    style={{ 
+                      width: `${Math.min(notification.newPlantHealth, 100)}%`,
+                      transition: 'width 1s cubic-bezier(0.4, 0, 0.2, 1)'
+                    }}
+                  />
+                  <div 
+                    className="relative h-full bg-gradient-to-r from-pink-500 to-purple-500 rounded-full shadow-lg transition-all duration-1000 ease-out"
+                    style={{ 
+                      width: `${Math.min(notification.newPlantHealth, 100)}%`,
+                      boxShadow: '0 0 10px rgba(236, 72, 153, 0.5)'
+                    }}
+                  >
+                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-shimmer" />
+                  </div>
+                </div>
+                <p className="text-xs text-pink-600 font-semibold text-center">
+                  +{notification.healthAdded} HP
+                </p>
+              </div>
+            </div>
+          )}
+
           {/* Plant Health Progress */}
-          {isPlantHealth && (
+          {isPlantHealth && !isCombined && (
             <div className="space-y-2">
               <div className="flex justify-between items-center text-xs">
                 <span className="text-gray-500 font-semibold">Plant Health</span>
@@ -139,8 +216,8 @@ export default function NotificationDropdown({ notification, onClose }) {
             </div>
           )}
 
-          {/* XP Progress Bar - Hanya tampil jika bukan level up dan bukan plant health */}
-          {!isLevelUp && !isPlantHealth && (
+          {/* XP Progress Bar - Hanya tampil jika bukan level up, bukan plant health, dan bukan combined */}
+          {!isLevelUp && !isPlantHealth && !isCombined && (
             <div className="space-y-2">
               <div className="flex justify-between items-center text-xs">
                 <span className="text-gray-500 font-semibold">Progress XP</span>
@@ -184,10 +261,10 @@ export default function NotificationDropdown({ notification, onClose }) {
               <div className="text-6xl animate-bounce">🎊</div>
               <div className="bg-gradient-to-r from-yellow-100 to-orange-100 rounded-xl p-4 border-2 border-yellow-200">
                 <p className="text-2xl font-bold text-yellow-700 mb-1">
-                  Level {notification.newLevel}
+                  Level {notification.newLevel || notification.level}
                 </p>
                 <p className="text-sm text-yellow-600">
-                  Kamu mendapatkan +{notification.xpGained} XP
+                  Kamu mendapatkan +{notification.xpAdded} XP
                 </p>
               </div>
             </div>
@@ -201,12 +278,15 @@ export default function NotificationDropdown({ notification, onClose }) {
             className={`w-full py-2.5 rounded-xl font-bold text-white shadow-lg transition-transform active:scale-95 ${
               isLevelUp
                 ? 'bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600'
+                : isCombined
+                ? 'bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600'
                 : isPlantHealth
                 ? 'bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600'
                 : 'bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700'
             }`}
           >
             {isLevelUp ? 'Keren Banget! 🔥' : 
+             isCombined ? 'Mantap! 🎁' :
              isPlantHealth ? 'Yeay! 🌻' : 
              'Mantap! 👍'}
           </button>

@@ -20,7 +20,6 @@ export default function MissionsPage() {
   const [isLoading, setIsLoading] = useState(false);
   
   const [notification, setNotification] = useState(null);
-  const [healthNotification, setHealthNotification] = useState(null);
   const [isActivityModalOpen, setIsActivityModalOpen] = useState(false);
   const [targetActivityId, setTargetActivityId] = useState(null);
 
@@ -115,17 +114,18 @@ export default function MissionsPage() {
             if (leveledUp) {
                 setShowConfetti(true);
                 setNotification({
-                    type: 'levelup',
+                    type: 'level_up',
                     message: 'Luar biasa! Kamu berhasil naik level! 🎉',
-                    xpGained: result.xpAdded,
-                    newLevel: result.newLevel
+                    xpAdded: result.xpAdded,
+                    newLevel: result.newLevel,
+                    level: result.newLevel
                 });
                 setTimeout(() => setShowConfetti(false), 5000);
             } else {
                 setNotification({
-                    type: 'success',
+                    type: 'xp_progress',
                     message: `Mantap! Misi selesai. Lihat progress XP-mu!`,
-                    xpGained: result.xpAdded,
+                    xpAdded: result.xpAdded,
                     currentXP: result.currentXP,
                     maxXP: result.xpPerLevel,
                     xpPercentage: result.xpPercentage
@@ -155,7 +155,6 @@ export default function MissionsPage() {
   }, [API_URL, user, missions, checkBadges, isLoading]);
 
   const closeNotification = useCallback(() => setNotification(null), []);
-  const closeHealthNotification = useCallback(() => setHealthNotification(null), []);
 
   // Memoized computations
   const xpPercentage = useMemo(() => {
@@ -184,21 +183,11 @@ export default function MissionsPage() {
         </Suspense>
       )}
 
-      {/* XP Notification - Top */}
+      {/* Notification */}
       <NotificationDropdown 
         notification={notification}
         onClose={closeNotification}
       />
-
-      {/* Health Notification - Bottom (stacked) */}
-      {healthNotification && (
-        <div className="fixed top-[450px] right-6 z-[998]">
-          <NotificationDropdown 
-            notification={healthNotification}
-            onClose={closeHealthNotification}
-          />
-        </div>
-      )}
 
       <ActivityModal 
         isOpen={isActivityModalOpen} 
@@ -413,7 +402,7 @@ export default function MissionsPage() {
                 }));
               }
               
-              // Show XP notification (top)
+              // Show combined notification (XP + Health in grid)
               if (result.leveledUp) {
                 setShowConfetti(true);
                 setNotification({
@@ -425,21 +414,16 @@ export default function MissionsPage() {
                 setTimeout(() => setShowConfetti(false), 5000);
               } else {
                 setNotification({
-                  type: 'xp_progress',
+                  type: 'combined',
                   message: 'Mantap! Misi harian selesai.',
                   xpAdded: result.xpAdded,
+                  healthAdded: result.healthAdded,
                   currentXP: result.newXP,
                   maxXP: levelInfo?.xpPerLevel || 1000,
                   xpPercentage: result.xpPercentage,
+                  newPlantHealth: result.newPlantHealth,
                 });
               }
-
-              // Show plant health notification BERSAMAAN (bottom, no delay)
-              setHealthNotification({
-                type: 'plant_health',
-                healthAdded: result.healthAdded,
-                newPlantHealth: result.newPlantHealth,
-              });
 
               // Badge check
               setTimeout(() => {
