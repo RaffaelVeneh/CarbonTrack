@@ -537,23 +537,36 @@ export default function MissionsPage() {
             onClaimSuccess={(result) => {
               console.log('🎉 Weekly mission claim success:', result);
               
-              // Update plant health state immediately
-              setPlantHealth(result.newPlantHealth);
-              console.log('🌻 Updated plant health to:', result.newPlantHealth);
+              // Update plant health state immediately (check both possible keys)
+              const newHealth = result.newPlantHealth || result.plant_health || result.newHealth;
+              if (newHealth !== undefined) {
+                setPlantHealth(newHealth);
+                console.log('🌻 Updated plant health to:', newHealth);
+              }
               
               // Also refresh to ensure data consistency
               fetchPlantHealth(user.id);
               
-              // Update level info if XP changed
-              if (result.newXP !== undefined && result.newLevel) {
-                const xpPerLevel = levelInfo?.xpPerLevel || 100;
-                const xpProgress = result.newXP - ((result.newLevel - 1) * xpPerLevel);
+              // Update level info if XP changed (always update, not just when leveled up)
+              if (result.newXP !== undefined || result.currentXP !== undefined) {
+                const xpPerLevel = levelInfo?.xpPerLevel || result.xpPerLevel || 100;
+                const updatedXP = result.newXP || result.currentXP;
+                const updatedLevel = result.newLevel || result.currentLevel || levelInfo?.currentLevel;
+                const xpProgress = updatedXP - ((updatedLevel - 1) * xpPerLevel);
+                
+                console.log('📊 Updating levelInfo:', {
+                  oldXP: levelInfo?.currentXP,
+                  newXP: updatedXP,
+                  oldLevel: levelInfo?.currentLevel,
+                  newLevel: updatedLevel
+                });
                 
                 setLevelInfo(prev => ({
                   ...prev,
-                  currentLevel: result.newLevel,
-                  currentXP: result.newXP,
+                  currentLevel: updatedLevel,
+                  currentXP: updatedXP,
                   xpProgress: xpProgress,
+                  xpPerLevel: xpPerLevel,
                   progressPercentage: result.xpPercentage || Math.floor((xpProgress / xpPerLevel) * 100)
                 }));
               }
