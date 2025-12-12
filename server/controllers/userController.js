@@ -4,13 +4,22 @@ const db = require('../config/db');
 exports.getLeaderboard = async (req, res) => {
     try {
         const [rows] = await db.execute(`
-            SELECT id, username, current_level, total_xp, island_health 
-            FROM users 
-            ORDER BY total_xp DESC 
+            SELECT 
+                u.id, 
+                u.username, 
+                u.current_level, 
+                u.total_xp, 
+                u.island_health,
+                COALESCE(SUM(dl.carbon_saved), 0) as total_co2_saved
+            FROM users u
+            LEFT JOIN daily_logs dl ON u.id = dl.user_id
+            GROUP BY u.id, u.username, u.current_level, u.total_xp, u.island_health
+            ORDER BY u.total_xp DESC 
             LIMIT 10
         `);
         res.json(rows);
     } catch (error) {
+        console.error('Leaderboard Error:', error);
         res.status(500).json({ message: 'Server Error' });
     }
 };

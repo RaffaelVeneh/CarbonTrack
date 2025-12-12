@@ -468,7 +468,7 @@ export default function LeaderboardPage() {
                       <div className="col-span-2 text-center">
                         <div className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-green-50 to-lime-50 rounded-xl border border-green-200">
                           <Leaf className="text-green-600" size={16} />
-                          <span className="font-bold text-green-700">{(player.total_co2_saved || 0).toFixed(1)} kg</span>
+                          <span className="font-bold text-green-700">{(parseFloat(player.total_co2_saved) || 0).toFixed(1)} kg</span>
                         </div>
                       </div>
                     </div>
