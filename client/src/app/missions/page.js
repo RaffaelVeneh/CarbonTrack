@@ -27,6 +27,7 @@ export default function MissionsPage() {
   // Tab system for Daily Missions
   const [activeTab, setActiveTab] = useState('main'); // 'main' or 'daily'
   const [plantHealth, setPlantHealth] = useState(0);
+  const [dailyMissionsRefreshKey, setDailyMissionsRefreshKey] = useState(0);
 
   const { checkBadges } = useBadge();
   const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
@@ -203,7 +204,13 @@ export default function MissionsPage() {
         isOpen={isActivityModalOpen} 
         onClose={() => setIsActivityModalOpen(false)} 
         userId={user.id}
-        onRefresh={() => fetchMissions(user.id)} 
+        onRefresh={() => {
+          fetchMissions(user.id);
+          // Refresh daily missions jika sedang di tab daily
+          if (activeTab === 'daily') {
+            setDailyMissionsRefreshKey(prev => prev + 1);
+          }
+        }} 
         initialActivityId={targetActivityId} 
       />
 
@@ -374,6 +381,7 @@ export default function MissionsPage() {
             userId={user.id}
             API_URL={API_URL}
             onActivitySelect={handleDoMission}
+            refreshKey={dailyMissionsRefreshKey}
             onClaimSuccess={(result) => {
               console.log('🎉 Claim success result:', result);
               

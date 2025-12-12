@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Clock, Gift, Zap, Target, Calendar } from 'lucide-react';
 
-export default function DailyMissionsTab({ userId, API_URL, onActivitySelect, onClaimSuccess }) {
+export default function DailyMissionsTab({ userId, API_URL, onActivitySelect, onClaimSuccess, refreshKey }) {
     const [dailyMissions, setDailyMissions] = useState([]);
     const [countdown, setCountdown] = useState('');
     const [secondsRemaining, setSecondsRemaining] = useState(0);
@@ -26,7 +26,7 @@ export default function DailyMissionsTab({ userId, API_URL, onActivitySelect, on
 
     useEffect(() => {
         if (userId) fetchDailyMissions();
-    }, [userId, fetchDailyMissions]);
+    }, [userId, fetchDailyMissions, refreshKey]);
 
     // Real-time countdown timer (update every second)
     useEffect(() => {
@@ -146,6 +146,22 @@ export default function DailyMissionsTab({ userId, API_URL, onActivitySelect, on
                                     <p className="text-sm text-gray-600 mb-3">
                                         {mission.description}
                                     </p>
+
+                                    {/* Progress Bar - Only show if not claimed */}
+                                    {!isClaimed && (
+                                        <div className="mb-3">
+                                            <div className="flex justify-between text-xs mb-1.5">
+                                                <span className="text-gray-500 font-semibold">Progress</span>
+                                                <span className="font-bold text-purple-600">{mission.progress_text}</span>
+                                            </div>
+                                            <div className="w-full bg-gray-100 rounded-full h-2.5 overflow-hidden">
+                                                <div 
+                                                    className="bg-gradient-to-r from-purple-500 to-pink-500 h-full transition-all duration-500" 
+                                                    style={{ width: `${Math.min(100, (mission.progress / mission.target_value) * 100)}%` }}
+                                                ></div>
+                                            </div>
+                                        </div>
+                                    )}
 
                                     {/* Rewards */}
                                     <div className="flex items-center gap-4 text-sm">
