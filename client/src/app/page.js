@@ -1,8 +1,33 @@
+'use client';
+
+import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image'; 
 import { Leaf, ArrowRight, Activity, Award, Zap } from 'lucide-react';
 
 export default function LandingPage() {
+  const router = useRouter();
+
+  useEffect(() => {
+    // Check if user is already logged in
+    const userData = localStorage.getItem('user');
+    if (userData) {
+      try {
+        const user = JSON.parse(userData);
+        // If user data exists and has valid id, redirect to dashboard
+        if (user && user.id) {
+          console.log('User already logged in, redirecting to dashboard...');
+          router.push('/dashboard');
+        }
+      } catch (error) {
+        // If localStorage data is corrupted, clear it
+        console.error('Invalid user data in localStorage:', error);
+        localStorage.removeItem('user');
+      }
+    }
+  }, [router]);
+
   return (
     <div className="min-h-screen bg-white text-gray-800 font-sans">
       
@@ -43,7 +68,7 @@ export default function LandingPage() {
       <header className="max-w-7xl mx-auto px-8 py-20 md:py-32 flex flex-col md:flex-row items-center gap-12">
         <div className="flex-1 space-y-8">
           <div className="inline-block px-4 py-1.5 bg-green-50 text-emerald-700 font-bold rounded-full text-sm border border-emerald-100">
-            🌱 #1 Aplikasi Pelacak Jejak Karbon Mahasiswa
+            🌱 #1 Aplikasi Pelacak Jejak Karbon Gen Z
           </div>
           <h1 className="text-5xl md:text-7xl font-extrabold text-gray-900 leading-tight">
             Ubah Kebiasaan,<br/> 
