@@ -5,6 +5,48 @@ const crypto = require('crypto');
 const emailService = require('../services/emailService');
 const db = require('../config/db');
 
+// CHECK AVAILABILITY (Username & Email)
+exports.checkAvailability = async (req, res) => {
+    try {
+        const { username, email } = req.query;
+
+        if (!username && !email) {
+            return res.status(400).json({ message: 'Username atau email harus diisi!' });
+        }
+
+        const results = {};
+
+        // Check username
+        if (username) {
+            const [rows] = await db.execute(
+                'SELECT id, email_verified FROM users WHERE username = ?',
+                [username]
+            );
+            // Username available if not found OR found but not verified
+            results.usernameAvailable = rows.length === 0 || !rows[0].email_verified;
+            results.usernameExists = rows.length > 0;
+            results.usernameVerified = rows.length > 0 ? rows[0].email_verified : false;
+        }
+
+        // Check email
+        if (email) {
+            const [rows] = await db.execute(
+                'SELECT id, email_verified FROM users WHERE email = ?',
+                [email]
+            );
+            // Email available if not found OR found but not verified
+            results.emailAvailable = rows.length === 0 || !rows[0].email_verified;
+            results.emailExists = rows.length > 0;
+            results.emailVerified = rows.length > 0 ? rows[0].email_verified : false;
+        }
+
+        res.json(results);
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Server Error' });
+    }
+};
+
 // LOGIKA REGISTER (with 6-digit Code)
 exports.register = async (req, res) => {
     try {
@@ -15,31 +57,42 @@ exports.register = async (req, res) => {
             return res.status(400).json({ message: 'Semua field harus diisi!' });
         }
 
-        if (password.length < 8) {
-            return res.status(400).json({ message: 'Password minimal 8 karakter!' });
+        if (password.length < 6) {
+            return res.status(400).json({ message: 'Password minimal 6 karakter!' });
         }
 
         // 2. Cek apakah email sudah terdaftar dan verified
-        const existingUser = await User.findByEmail(email);
-        if (existingUser && existingUser.email_verified) {
-            return res.status(400).json({ message: 'Email sudah terdaftar!' });
+        const existingEmail = await User.findByEmail(email);
+        if (existingEmail && existingEmail.email_verified) {
+            return res.status(400).json({ message: 'Email sudah terdaftar dan terverifikasi!' });
         }
 
-        // 3. Enkripsi Password
+        // 3. Cek apakah username sudah dipakai oleh user yang terverifikasi
+        const [usernameCheck] = await db.execute(
+            'SELECT id, email_verified FROM users WHERE username = ? AND email != ?',
+            [username, email]
+        );
+        if (usernameCheck.length > 0 && usernameCheck[0].email_verified) {
+            return res.status(400).json({ message: 'Username sudah dipakai!' });
+        }
+
+        // 4. Enkripsi Password
         const salt = await bcrypt.genSalt(10);
         const hashedPassword = await bcrypt.hash(password, salt);
 
-        // 4. Generate 6-digit verification code
+        // 5. Generate 6-digit verification code
         const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
         const codeExpires = new Date(Date.now() + 10 * 60000); // 10 minutes
 
-        // 5. If user exists but not verified, update; otherwise create new
-        if (existingUser && !existingUser.email_verified) {
+        // 6. If user exists but not verified, update; otherwise create new
+        if (existingEmail && !existingEmail.email_verified) {
+            // Update existing unverified user
             await db.execute(
                 'UPDATE users SET username = ?, password_hash = ?, verification_code = ?, verification_code_expires = ? WHERE email = ?',
                 [username, hashedPassword, verificationCode, codeExpires, email]
             );
         } else {
+            // Create new user
             await User.create(username, email, hashedPassword);
             await db.execute(
                 'UPDATE users SET verification_code = ?, verification_code_expires = ? WHERE email = ?',
@@ -47,7 +100,7 @@ exports.register = async (req, res) => {
             );
         }
 
-        // 6. Send verification code email
+        // 7. Send verification code email
         try {
             await emailService.sendVerificationCode(email, verificationCode, username);
             res.status(201).json({ 
@@ -78,15 +131,24 @@ exports.login = async (req, res) => {
             return res.status(400).json({ message: 'Email atau password salah' });
         }
 
-        // 2. Cek password cocok atau tidak
+        // 2. Cek apakah email sudah terverifikasi
+        if (!user.email_verified) {
+            return res.status(403).json({ 
+                message: 'Email belum terverifikasi! Silakan cek email Anda untuk kode verifikasi.',
+                requiresVerification: true,
+                email: user.email
+            });
+        }
+
+        // 3. Cek password cocok atau tidak
         const isMatch = await bcrypt.compare(password, user.password_hash);
         if (!isMatch) {
             return res.status(400).json({ message: 'Email atau password salah' });
         }
 
-        // 3. Buat Token (JWT)
+        // 4. Buat Token (JWT)
         const token = jwt.sign({ id: user.id }, process.env.JWT_SECRET, {
-            expiresIn: '1d' // Token berlaku 1 hari
+            expiresIn: '7d' // Token berlaku 7 hari
         });
 
         res.json({

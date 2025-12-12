@@ -95,7 +95,15 @@ function LoginForm({ onSwitch }) {
         localStorage.setItem('user', JSON.stringify(data.user));
         router.push('/dashboard');
       } else {
-        setError(data.message || 'Email atau password salah');
+        // If email not verified, redirect to register page for verification
+        if (data.requiresVerification) {
+          setError(data.message + ' Silakan verifikasi email terlebih dahulu.');
+          setTimeout(() => {
+            router.push('/login?mode=register');
+          }, 2000);
+        } else {
+          setError(data.message || 'Email atau password salah');
+        }
       }
     } catch (err) { setError('Gagal menghubungi server'); } finally { setLoading(false); }
   };
@@ -154,9 +162,67 @@ function RegisterForm({ onSwitch }) {
   const [verificationCode, setVerificationCode] = useState('');
   const [countdown, setCountdown] = useState(600); // 10 minutes in seconds
   const [canResend, setCanResend] = useState(false);
+  
+  // Validation states
+  const [usernameStatus, setUsernameStatus] = useState({ checking: false, available: null, message: '' });
+  const [emailStatus, setEmailStatus] = useState({ checking: false, available: null, message: '' });
 
   const handleChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
   const API_URL = process.env.NEXT_PUBLIC_API_URL;
+
+  // Real-time username check
+  useEffect(() => {
+    if (!formData.username || formData.username.length < 3) {
+      setUsernameStatus({ checking: false, available: null, message: '' });
+      return;
+    }
+
+    const timer = setTimeout(async () => {
+      setUsernameStatus({ checking: true, available: null, message: '' });
+      try {
+        const res = await fetch(`${API_URL}/auth/check-availability?username=${encodeURIComponent(formData.username)}`);
+        const data = await res.json();
+        
+        if (data.usernameAvailable) {
+          setUsernameStatus({ checking: false, available: true, message: '✓ Username tersedia' });
+        } else {
+          setUsernameStatus({ checking: false, available: false, message: '✗ Username sudah dipakai' });
+        }
+      } catch (err) {
+        setUsernameStatus({ checking: false, available: null, message: '' });
+      }
+    }, 500); // Debounce 500ms
+
+    return () => clearTimeout(timer);
+  }, [formData.username, API_URL]);
+
+  // Real-time email check
+  useEffect(() => {
+    if (!formData.email || !formData.email.includes('@')) {
+      setEmailStatus({ checking: false, available: null, message: '' });
+      return;
+    }
+
+    const timer = setTimeout(async () => {
+      setEmailStatus({ checking: true, available: null, message: '' });
+      try {
+        const res = await fetch(`${API_URL}/auth/check-availability?email=${encodeURIComponent(formData.email)}`);
+        const data = await res.json();
+        
+        if (data.emailAvailable) {
+          setEmailStatus({ checking: false, available: true, message: '✓ Email tersedia' });
+        } else if (data.emailVerified) {
+          setEmailStatus({ checking: false, available: false, message: '✗ Email sudah terdaftar' });
+        } else {
+          setEmailStatus({ checking: false, available: true, message: '⚠ Email belum terverifikasi, bisa digunakan' });
+        }
+      } catch (err) {
+        setEmailStatus({ checking: false, available: null, message: '' });
+      }
+    }, 500); // Debounce 500ms
+
+    return () => clearTimeout(timer);
+  }, [formData.email, API_URL]);
   
   // Countdown timer untuk resend code
   useEffect(() => {
@@ -252,17 +318,60 @@ function RegisterForm({ onSwitch }) {
         <form onSubmit={handleSubmit} className="space-y-3">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Username</label>
-            <input name="username" type="text" value={formData.username} required onChange={handleChange} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none transition" placeholder="Username" />
+            <input 
+              name="username" 
+              type="text" 
+              value={formData.username} 
+              required 
+              onChange={handleChange} 
+              className={`w-full px-4 py-2 border rounded-lg focus:ring-2 outline-none transition ${
+                usernameStatus.available === true ? 'border-emerald-500 focus:ring-emerald-500' :
+                usernameStatus.available === false ? 'border-red-500 focus:ring-red-500' :
+                'border-gray-300 focus:ring-emerald-500'
+              }`}
+              placeholder="Username" 
+            />
+            {usernameStatus.message && (
+              <p className={`text-xs mt-1 ${
+                usernameStatus.available ? 'text-emerald-600' : 'text-red-600'
+              }`}>
+                {usernameStatus.checking ? 'Checking...' : usernameStatus.message}
+              </p>
+            )}
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
-            <input name="email" type="email" value={formData.email} required onChange={handleChange} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none transition" placeholder="nama@email.com" />
+            <input 
+              name="email" 
+              type="email" 
+              value={formData.email} 
+              required 
+              onChange={handleChange} 
+              className={`w-full px-4 py-2 border rounded-lg focus:ring-2 outline-none transition ${
+                emailStatus.available === true ? 'border-emerald-500 focus:ring-emerald-500' :
+                emailStatus.available === false ? 'border-red-500 focus:ring-red-500' :
+                'border-gray-300 focus:ring-emerald-500'
+              }`}
+              placeholder="nama@email.com" 
+            />
+            {emailStatus.message && (
+              <p className={`text-xs mt-1 ${
+                emailStatus.available ? 'text-emerald-600' : 
+                emailStatus.message.includes('⚠') ? 'text-yellow-600' : 'text-red-600'
+              }`}>
+                {emailStatus.checking ? 'Checking...' : emailStatus.message}
+              </p>
+            )}
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
             <input name="password" type="password" value={formData.password} required onChange={handleChange} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none transition" placeholder="Min. 6 karakter" />
           </div>
-          <button type="submit" disabled={loading} className="w-full bg-emerald-600 text-white py-2.5 rounded-lg font-semibold hover:bg-emerald-700 transition duration-200 mt-2 disabled:bg-emerald-400">
+          <button 
+            type="submit" 
+            disabled={loading || usernameStatus.available === false || emailStatus.available === false} 
+            className="w-full bg-emerald-600 text-white py-2.5 rounded-lg font-semibold hover:bg-emerald-700 transition duration-200 mt-2 disabled:bg-gray-400 disabled:cursor-not-allowed"
+          >
             {loading ? 'Memproses...' : 'Daftar Akun'}
           </button>
         </form>
