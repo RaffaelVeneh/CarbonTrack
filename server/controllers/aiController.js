@@ -112,6 +112,33 @@ SPECIAL KEYWORDS (auto-link):
 - "badge" / "profil" → [Profil](/profile)
 - "pengaturan" / "settings" → [Pengaturan](/settings)
 
+🤖 AI ASSISTANT ACTIONS (NEW!):
+Kamu sekarang bisa melakukan action secara langsung! Gunakan format ACTION di akhir response:
+
+1. **Toggle Theme** - Jika user minta ubah tema/theme/dark mode/light mode:
+   Contoh: "Baik, saya ubah ke dark mode untuk kamu! [ACTION:{"action":"toggleTheme"}]"
+
+2. **Navigate to Page** - Jika user mau ke page tertentu:
+   Contoh: "Oke, saya buka halaman misi untuk kamu! [ACTION:{"action":"navigate","url":"/missions"}]"
+
+3. **Show User Stats** - Jika user tanya stats/statistik/progress mereka:
+   Contoh: "Ini progress kamu saat ini! [ACTION:{"action":"showStats"}]"
+
+4. **Show Mission Details** - Jika user tanya detail misi tertentu atau minta rekomendasi:
+   Contoh: "Aku rekomendasikan misi ini untuk level kamu:
+   [ACTION:{"action":"showMission","name":"Matikan Lampu","category":"Energi","difficulty":"Mudah","xp":50,"description":"Matikan lampu ruangan yang tidak dipakai selama 1 hari","tips":"Cek setiap ruangan sebelum tidur"}]"
+
+5. **Log Activity** - Jika user mau catat aktivitas hijau mereka:
+   Contoh: "Oke! Ayo catat aktivitas hijau kamu hari ini 🌱
+   [ACTION:{"action":"logActivity"}]"
+
+PENTING:
+- Gunakan ACTION hanya jika user EXPLICITLY minta (ubah tema, buka page, lihat stats, catat aktivitas)
+- Format ACTION harus EXACT: [ACTION:{json}]
+- ACTION di akhir response, SETELAH text explanation
+- Untuk showMission, WAJIB include: name, category, difficulty, xp, description
+- Untuk stats, AI akan auto-populate dengan user context yang dikirim frontend
+
 🌱 ENVIRONMENTAL EXPERTISE (tetap aktif):
 1. Hemat energi listrik (AC, lampu, elektronik)
 2. Transportasi ramah lingkungan (sepeda, carpool, public transport)
@@ -124,13 +151,40 @@ Jika user tanya di luar topik (misal politik, olahraga), arahkan kembali: "Maaf,
 
 exports.askAssistant = async (req, res) => {
     try {
-        const { question } = req.body;
+        const { question, userContext } = req.body;
         
         if (!question || !question.trim()) {
             return res.json({ answer: "Halo! Ada yang bisa EcoBot bantu? 🌱" });
         }
 
         console.log(`[AI] User asked: "${question.substring(0, 100)}..."`);
+        console.log(`[AI] User context:`, userContext);
+
+        // Enhance system prompt with user context
+        let enhancedPrompt = SYSTEM_PROMPT;
+        if (userContext) {
+            enhancedPrompt += `\n\n========================================
+KONTEKS USER SAAT INI:
+========================================
+- Level: ${userContext.level || 1}
+- Total XP: ${userContext.totalXp || 0}
+- Streak: ${userContext.streak || 0} hari
+- CO2 Saved: ${userContext.co2Saved || 0} kg
+- Total Emisi: ${userContext.totalEmission || 0} kg
+
+INSTRUKSI KHUSUS:
+- Jika user tanya tentang misi, berikan rekomendasi misi yang sesuai level mereka
+- Jika user ingin ubah theme, kirim ACTION: {"action": "toggleTheme"}
+- Jika user ingin ke page tertentu, kirim ACTION: {"action": "navigate", "url": "/page"}
+- Jika user tanya misi mudah, berikan misi level mereka dengan format ACTION BUTTON
+
+FORMAT ACTION (di akhir jawaban):
+[ACTION:{"action":"toggleTheme"}]
+[ACTION:{"action":"navigate","url":"/missions"}]
+[ACTION:{"action":"showMission","missionId":1,"name":"Matikan Lampu","xp":50}]
+
+Gunakan ACTION hanya jika user explicitly minta (ubah theme, lihat misi, ke page tertentu).`;
+        }
 
         // === GROQ AI INTEGRATION ===
         try {
@@ -138,25 +192,40 @@ exports.askAssistant = async (req, res) => {
                 messages: [
                     {
                         role: 'system',
-                        content: SYSTEM_PROMPT
+                        content: enhancedPrompt
                     },
                     {
                         role: 'user',
                         content: question
                     }
                 ],
-                model: 'llama-3.3-70b-versatile', // Model tercepat & terbaik Groq (gratis!)
+                model: 'llama-3.3-70b-versatile',
                 temperature: 0.7,
-                max_tokens: 800,
+                max_tokens: 1000,
                 top_p: 1,
                 stream: false
             });
 
-            const answer = chatCompletion.choices[0]?.message?.content || 
+            let answer = chatCompletion.choices[0]?.message?.content || 
                 "Maaf, EcoBot sedang berpikir terlalu dalam. Coba tanya lagi ya! 😅";
             
-            console.log(`[AI] Response: ${answer.length} chars`);
-            return res.json({ answer });
+            // Extract actions from response
+            const actions = [];
+            const actionRegex = /\[ACTION:({[^}]+})\]/g;
+            let match;
+            while ((match = actionRegex.exec(answer)) !== null) {
+                try {
+                    actions.push(JSON.parse(match[1]));
+                } catch (e) {
+                    console.error('Failed to parse action:', match[1]);
+                }
+            }
+            
+            // Remove action tags from answer
+            answer = answer.replace(actionRegex, '').trim();
+            
+            console.log(`[AI] Response: ${answer.length} chars, ${actions.length} actions`);
+            return res.json({ answer, actions });
 
         } catch (groqError) {
             console.error('[Groq API Error]:', groqError.message);

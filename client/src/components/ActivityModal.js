@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { X, Save, CheckCircle, Leaf, Flame, Search } from 'lucide-react';
 import { useBadge } from '@/contexts/BadgeContext';
 
-export default function ActivityModal({ isOpen, onClose, userId, onRefresh, initialActivityId, onUpdateStreak }) {
+export default function ActivityModal({ isOpen, onClose, userId, onRefresh, initialActivityId, onUpdateStreak, onActivityLogged }) {
   const [activities, setActivities] = useState([]);
   const [loading, setLoading] = useState(false);
   const [selectedActivity, setSelectedActivity] = useState('');
@@ -154,18 +154,32 @@ export default function ActivityModal({ isOpen, onClose, userId, onRefresh, init
         }
         
         // Refresh data
-        onRefresh(); 
+        if (onRefresh) {
+          onRefresh(); 
+        }
         
         // Badge check dengan timeout (non-blocking)
-        setTimeout(() => {
-          checkBadges(userId).catch(err => console.error('Badge check error:', err));
-        }, 500);
+        if (userId) {
+          setTimeout(() => {
+            checkBadges(userId).catch(err => console.error('Badge check error:', err));
+          }, 500);
+        }
         
         setShowSuccess(true);
         setInputValue('');
         setSelectedActivity('');
         setSearchQuery('');
         setShowDropdown(false);
+        
+        // Callback for AI assistant
+        if (onActivityLogged) {
+          const activity = activities.find(a => a.id === selectedActivity);
+          onActivityLogged({
+            name: activity?.activity_name || 'Aktivitas',
+            xp: result.xpGained || 0,
+            co2: result.co2Impact || 0
+          });
+        }
       } else {
         // Tampilkan pesan error dari backend jika ada
         alert('Gagal menyimpan: ' + (result.message || 'Terjadi kesalahan'));

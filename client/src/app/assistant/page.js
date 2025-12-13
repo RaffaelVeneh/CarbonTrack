@@ -3,7 +3,194 @@
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Sidebar from '@/components/Sidebar';
-import { Send, Bot, User, RotateCcw, ExternalLink } from 'lucide-react';
+import { Send, Bot, User, RotateCcw, ExternalLink, Target, Moon, Sun, ArrowRight, BarChart3, Activity, X, Zap, Leaf } from 'lucide-react';
+import { useTheme } from '@/contexts/ThemeContext';
+import ActivityModal from '@/components/ActivityModal';
+
+// Mission Detail Modal Component
+function MissionDetailModal({ mission, onClose, onNavigate }) {
+  return (
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={onClose}>
+      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-lg w-full p-6 animate-scale-in" onClick={(e) => e.stopPropagation()}>
+        <div className="flex justify-between items-start mb-4">
+          <div>
+            <h3 className="text-2xl font-bold text-gray-800 dark:text-gray-100">{mission.name}</h3>
+            <div className="flex gap-2 mt-2">
+              <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                mission.difficulty === 'Mudah' ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400' :
+                mission.difficulty === 'Sedang' ? 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400' :
+                mission.difficulty === 'Sulit' ? 'bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400' :
+                'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400'
+              }`}>
+                {mission.difficulty}
+              </span>
+              <span className="px-3 py-1 rounded-full text-xs font-semibold bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400">
+                {mission.category}
+              </span>
+            </div>
+          </div>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
+            <X size={24} />
+          </button>
+        </div>
+
+        <div className="space-y-4">
+          <div>
+            <h4 className="text-sm font-semibold text-gray-600 dark:text-gray-400 mb-2">Deskripsi</h4>
+            <p className="text-gray-700 dark:text-gray-300">{mission.description}</p>
+          </div>
+
+          {mission.tips && (
+            <div>
+              <h4 className="text-sm font-semibold text-gray-600 dark:text-gray-400 mb-2">💡 Tips</h4>
+              <p className="text-gray-700 dark:text-gray-300 italic">{mission.tips}</p>
+            </div>
+          )}
+
+          <div className="bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-900/20 dark:to-teal-900/20 p-4 rounded-xl border border-emerald-200 dark:border-emerald-700">
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-semibold text-gray-600 dark:text-gray-400">Reward</span>
+              <span className="text-2xl font-black text-emerald-600 dark:text-emerald-400">+{mission.xp} XP</span>
+            </div>
+          </div>
+        </div>
+
+        <div className="flex gap-3 mt-6">
+          <button
+            onClick={onClose}
+            className="flex-1 px-4 py-3 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-xl font-semibold hover:bg-gray-200 dark:hover:bg-gray-600 transition"
+          >
+            Tutup
+          </button>
+          <button
+            onClick={onNavigate}
+            className="flex-1 px-4 py-3 bg-gradient-to-r from-emerald-500 to-teal-600 text-white rounded-xl font-semibold hover:shadow-lg transition flex items-center justify-center gap-2"
+          >
+            <Target size={18} />
+            Lihat Semua Misi
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Stats Card Modal Component
+function StatsModal({ user, onClose }) {
+  const netImpact = (user.co2_saved || 0) - (user.total_emission || 0);
+  
+  return (
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={onClose}>
+      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-lg w-full p-6 animate-scale-in" onClick={(e) => e.stopPropagation()}>
+        <div className="flex justify-between items-center mb-6">
+          <h3 className="text-2xl font-bold text-gray-800 dark:text-gray-100">📊 Statistik Kamu</h3>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
+            <X size={24} />
+          </button>
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          <div className="bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 p-4 rounded-xl border border-blue-200 dark:border-blue-700">
+            <div className="text-sm font-semibold text-blue-600 dark:text-blue-400 mb-1">Level</div>
+            <div className="text-3xl font-black text-blue-700 dark:text-blue-300">{user.level || user.current_level || 1}</div>
+          </div>
+
+          <div className="bg-gradient-to-br from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20 p-4 rounded-xl border border-purple-200 dark:border-purple-700">
+            <div className="text-sm font-semibold text-purple-600 dark:text-purple-400 mb-1">Total XP</div>
+            <div className="text-3xl font-black text-purple-700 dark:text-purple-300">{user.total_xp || 0}</div>
+          </div>
+
+          <div className="bg-gradient-to-br from-orange-50 to-red-50 dark:from-orange-900/20 dark:to-red-900/20 p-4 rounded-xl border border-orange-200 dark:border-orange-700">
+            <div className="text-sm font-semibold text-orange-600 dark:text-orange-400 mb-1">🔥 Streak</div>
+            <div className="text-3xl font-black text-orange-700 dark:text-orange-300">{user.current_streak || 0} hari</div>
+          </div>
+
+          <div className="bg-gradient-to-br from-emerald-50 to-teal-50 dark:from-emerald-900/20 dark:to-teal-900/20 p-4 rounded-xl border border-emerald-200 dark:border-emerald-700">
+            <div className="text-sm font-semibold text-emerald-600 dark:text-emerald-400 mb-1">CO2 Saved</div>
+            <div className="text-2xl font-black text-emerald-700 dark:text-emerald-300">{(user.co2_saved || 0).toFixed(1)} kg</div>
+          </div>
+        </div>
+
+        <div className={`mt-4 p-4 rounded-xl border-2 ${
+          netImpact >= 0 
+            ? 'bg-gradient-to-br from-teal-50 to-cyan-50 dark:from-teal-900/20 dark:to-cyan-900/20 border-teal-300 dark:border-teal-700' 
+            : 'bg-gradient-to-br from-red-50 to-orange-50 dark:from-red-900/20 dark:to-orange-900/20 border-red-300 dark:border-red-700'
+        }`}>
+          <div className="text-sm font-semibold text-gray-600 dark:text-gray-400 mb-1">Net Impact</div>
+          <div className={`text-3xl font-black ${netImpact >= 0 ? 'text-teal-700 dark:text-teal-300' : 'text-red-700 dark:text-red-300'}`}>
+            {netImpact >= 0 ? '+' : ''}{netImpact.toFixed(1)} kg CO2
+          </div>
+          <p className="text-xs text-gray-600 dark:text-gray-400 mt-2">
+            {netImpact >= 0 ? '🌱 Keren! Kamu berkontribusi positif untuk bumi!' : '⚠️ Ayo tingkatkan aktivitas hijau kamu!'}
+          </p>
+        </div>
+
+        <button
+          onClick={onClose}
+          className="w-full mt-6 px-4 py-3 bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-xl font-semibold hover:shadow-lg transition"
+        >
+          Tutup
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// Component untuk action buttons dari AI
+function ActionButton({ action, onExecute }) {
+  const getButtonConfig = () => {
+    switch (action.action) {
+      case 'toggleTheme':
+        return {
+          icon: <Moon size={16} />,
+          label: 'Ubah Tema',
+          color: 'from-purple-500 to-indigo-600'
+        };
+      case 'navigate':
+        return {
+          icon: <ArrowRight size={16} />,
+          label: `Buka ${action.url}`,
+          color: 'from-blue-500 to-cyan-600'
+        };
+      case 'showMission':
+        return {
+          icon: <Target size={16} />,
+          label: action.name ? `Lihat: ${action.name}` : 'Lihat Misi',
+          color: 'from-emerald-500 to-teal-600'
+        };
+      case 'showStats':
+        return {
+          icon: <BarChart3 size={16} />,
+          label: 'Lihat Statistik',
+          color: 'from-blue-500 to-purple-600'
+        };
+      case 'logActivity':
+        return {
+          icon: <Activity size={16} />,
+          label: 'Catat Aktivitas',
+          color: 'from-green-500 to-emerald-600'
+        };
+      default:
+        return {
+          icon: <ArrowRight size={16} />,
+          label: 'Action',
+          color: 'from-gray-500 to-gray-600'
+        };
+    }
+  };
+
+  const config = getButtonConfig();
+
+  return (
+    <button
+      onClick={() => onExecute(action)}
+      className={`inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r ${config.color} text-white rounded-lg font-semibold shadow-md hover:shadow-lg transition-all hover:scale-105 mt-2`}
+    >
+      {config.icon}
+      {config.label}
+    </button>
+  );
+}
 
 // Component untuk parsing pesan dengan link interaktif
 function MessageContent({ text, isBot }) {
@@ -91,17 +278,80 @@ const QUICK_SUGGESTIONS = [
 ];
 
 export default function AssistantPage() {
+  const router = useRouter();
+  const { theme, toggleTheme } = useTheme();
   const [input, setInput] = useState('');
   const [messages, setMessages] = useState([DEFAULT_MESSAGE]);
   const [loading, setLoading] = useState(false);
-  const [isClient, setIsClient] = useState(false); // Track client-side mounting
-  const messagesEndRef = useRef(null); // Ref untuk scroll ke bawah
-  const textareaRef = useRef(null); // Ref untuk textarea auto-resize
+  const [isClient, setIsClient] = useState(false);
+  const [user, setUser] = useState(null);
+  const [showMissionModal, setShowMissionModal] = useState(false);
+  const [currentMission, setCurrentMission] = useState(null);
+  const [showStatsModal, setShowStatsModal] = useState(false);
+  const [showActivityModal, setShowActivityModal] = useState(false);
+  const messagesEndRef = useRef(null);
+  const textareaRef = useRef(null);
 
-  // Load chat history HANYA di client-side (after hydration)
-  useEffect(() => {
-    setIsClient(true); // Mark as client-side
+  // Handler untuk execute actions dari AI
+  const executeAction = (action) => {
+    console.log('Executing action:', action);
     
+    switch (action.action) {
+      case 'toggleTheme':
+        toggleTheme();
+        // Add confirmation message
+        setMessages(prev => [...prev, {
+          role: 'bot',
+          text: `✅ Tema berhasil diubah ke ${theme === 'light' ? 'Dark' : 'Light'} Mode!`
+        }]);
+        break;
+        
+      case 'navigate':
+        router.push(action.url);
+        break;
+        
+      case 'showMission':
+        if (action.name && action.category && action.difficulty && action.xp && action.description) {
+          setCurrentMission(action);
+          setShowMissionModal(true);
+        } else {
+          router.push('/missions');
+        }
+        break;
+      
+      case 'showStats':
+        setShowStatsModal(true);
+        break;
+      
+      case 'logActivity':
+        setShowActivityModal(true);
+        break;
+        
+      default:
+        console.log('Unknown action:', action.action);
+    }
+  };
+
+  // Handler for activity logged
+  const handleActivityLogged = (activity) => {
+    setShowActivityModal(false);
+    setMessages(prev => [...prev, {
+      role: 'bot',
+      text: `✅ Aktivitas "${activity.name}" berhasil dicatat! Kamu mendapat +${activity.xp} XP!`
+    }]);
+  };
+
+  // Load user data and chat history
+  useEffect(() => {
+    setIsClient(true);
+    
+    // Load user data
+    const userData = JSON.parse(localStorage.getItem('user'));
+    if (userData) {
+      setUser(userData);
+    }
+    
+    // Load chat history
     try {
       const savedChat = localStorage.getItem(STORAGE_KEY);
       if (savedChat) {
@@ -113,7 +363,7 @@ export default function AssistantPage() {
     } catch (error) {
       console.error('Failed to load chat history:', error);
     }
-  }, []); // Run once on mount
+  }, []);
 
   // Save chat history ke localStorage setiap kali messages berubah
   useEffect(() => {
@@ -165,17 +415,33 @@ export default function AssistantPage() {
     setLoading(true);
 
     try {
-      // 2. Kirim ke Backend AI
+      // 2. Prepare user context
+      const userContext = user ? {
+        level: user.level || user.current_level || 1,
+        totalXp: user.total_xp || 0,
+        streak: user.current_streak || 0,
+        co2Saved: user.co2_saved || 0,
+        totalEmission: user.total_emission || 0
+      } : null;
+
+      // 3. Kirim ke Backend AI dengan context
       const res = await fetch(`${API_URL}/ai/ask`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ question: userMessage.text })
+        body: JSON.stringify({ 
+          question: userMessage.text,
+          userContext 
+        })
       });
       
       const data = await res.json();
 
-      // 3. Tambahkan balasan Bot
-      setMessages(prev => [...prev, { role: 'bot', text: data.answer }]);
+      // 4. Tambahkan balasan Bot dengan actions
+      setMessages(prev => [...prev, { 
+        role: 'bot', 
+        text: data.answer,
+        actions: data.actions || []
+      }]);
     } catch (error) {
       setMessages(prev => [...prev, { role: 'bot', text: 'Maaf, EcoBot sedang pusing (Server Error). 😵' }]);
     } finally {
@@ -260,12 +526,27 @@ export default function AssistantPage() {
                 </div>
 
                 {/* Message Bubble */}
-                <div className={`px-4 py-3 rounded-2xl text-base leading-relaxed shadow-md whitespace-pre-wrap ${
-                  msg.role === 'user' 
-                    ? 'bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 rounded-tr-sm border border-gray-100 dark:border-gray-700' 
-                    : 'bg-gradient-to-br from-emerald-600 to-teal-600 text-white rounded-tl-sm'
-                }`}>
-                  <MessageContent text={msg.text} isBot={msg.role === 'bot'} />
+                <div className={`flex flex-col gap-2`}>
+                  <div className={`px-4 py-3 rounded-2xl text-base leading-relaxed shadow-md whitespace-pre-wrap ${
+                    msg.role === 'user' 
+                      ? 'bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 rounded-tr-sm border border-gray-100 dark:border-gray-700' 
+                      : 'bg-gradient-to-br from-emerald-600 to-teal-600 text-white rounded-tl-sm'
+                  }`}>
+                    <MessageContent text={msg.text} isBot={msg.role === 'bot'} />
+                  </div>
+                  
+                  {/* Action Buttons (hanya untuk bot messages) */}
+                  {msg.role === 'bot' && msg.actions && msg.actions.length > 0 && (
+                    <div className="flex flex-wrap gap-2">
+                      {msg.actions.map((action, actionIdx) => (
+                        <ActionButton 
+                          key={actionIdx} 
+                          action={action} 
+                          onExecute={executeAction}
+                        />
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -312,6 +593,45 @@ export default function AssistantPage() {
         </div>
 
       </main>
+
+      {/* Mission Detail Modal */}
+      {showMissionModal && currentMission && (
+        <MissionDetailModal 
+          mission={currentMission}
+          onClose={() => {
+            setShowMissionModal(false);
+            setCurrentMission(null);
+          }}
+          onNavigate={() => {
+            setShowMissionModal(false);
+            setCurrentMission(null);
+            router.push('/missions');
+          }}
+        />
+      )}
+
+      {/* Stats Modal */}
+      {showStatsModal && user && (
+        <StatsModal 
+          user={user}
+          onClose={() => setShowStatsModal(false)}
+        />
+      )}
+
+      {/* Activity Modal */}
+      {showActivityModal && user && (
+        <ActivityModal 
+          isOpen={showActivityModal}
+          onClose={() => setShowActivityModal(false)}
+          userId={user.id}
+          onRefresh={() => {
+            // Refresh user data after activity logged
+            const userData = JSON.parse(localStorage.getItem('user'));
+            if (userData) setUser(userData);
+          }}
+          onActivityLogged={handleActivityLogged}
+        />
+      )}
     </div>
   );
 }
