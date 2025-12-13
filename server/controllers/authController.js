@@ -5,6 +5,89 @@ const crypto = require('crypto');
 const emailService = require('../services/emailService');
 const db = require('../config/db');
 
+// GOOGLE AUTH (Register/Login dengan Google)
+exports.googleAuth = async (req, res) => {
+    try {
+        const { email, name, googleId, picture } = req.body;
+
+        if (!email || !name || !googleId) {
+            return res.status(400).json({ message: 'Data Google tidak lengkap!' });
+        }
+
+        // Check if user exists
+        let user = await User.findByEmail(email);
+
+        if (user) {
+            // User exists - Update google_id if not set
+            if (!user.google_id) {
+                await db.execute(
+                    'UPDATE users SET google_id = ?, email_verified = TRUE WHERE id = ?',
+                    [googleId, user.id]
+                );
+            }
+
+            // Make sure email is verified
+            if (!user.email_verified) {
+                await db.execute(
+                    'UPDATE users SET email_verified = TRUE WHERE id = ?',
+                    [user.id]
+                );
+            }
+        } else {
+            // User doesn't exist - Create new account
+            // Generate username from email or name
+            let username = name.replace(/\s+/g, '').toLowerCase();
+            
+            // Check if username exists, add number if needed
+            const [existingUsername] = await db.execute(
+                'SELECT id FROM users WHERE username = ?',
+                [username]
+            );
+            
+            if (existingUsername.length > 0) {
+                username = `${username}${Math.floor(Math.random() * 10000)}`;
+            }
+
+            // Create user without password (Google auth only)
+            const randomPassword = crypto.randomBytes(32).toString('hex');
+            const salt = await bcrypt.genSalt(10);
+            const hashedPassword = await bcrypt.hash(randomPassword, salt);
+
+            await User.create(username, email, hashedPassword);
+            
+            // Update with google_id and set email_verified
+            await db.execute(
+                'UPDATE users SET google_id = ?, email_verified = TRUE WHERE email = ?',
+                [googleId, email]
+            );
+
+            user = await User.findByEmail(email);
+        }
+
+        // Generate JWT token
+        const token = jwt.sign({ id: user.id }, process.env.JWT_SECRET, {
+            expiresIn: '7d'
+        });
+
+        res.json({
+            message: 'Login dengan Google berhasil',
+            token,
+            user: {
+                id: user.id,
+                username: user.username,
+                email: user.email,
+                level: user.current_level,
+                island_health: user.island_health,
+                email_verified: true,
+                google_auth: true
+            }
+        });
+    } catch (error) {
+        console.error('Google auth error:', error);
+        res.status(500).json({ message: 'Server Error' });
+    }
+};
+
 // CHECK AVAILABILITY (Username & Email)
 exports.checkAvailability = async (req, res) => {
     try {

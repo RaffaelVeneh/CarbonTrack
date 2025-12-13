@@ -8,6 +8,7 @@ router.get('/check-availability', authController.checkAvailability);
 // Authentication
 router.post('/register', authController.register);
 router.post('/login', authController.login);
+router.post('/google-auth', authController.googleAuth);
 
 // Email Verification
 router.post('/verify-email', authController.verifyEmail);
