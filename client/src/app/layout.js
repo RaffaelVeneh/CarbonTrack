@@ -31,6 +31,13 @@ export default function RootLayout({ children }) {
 
   return (
     <html lang="en" suppressHydrationWarning>
+      <head>
+        <link rel="icon" href="/logo-icon.jpg" sizes="any" />
+        <link rel="shortcut icon" href="/logo-icon.jpg" />
+        <link rel="apple-touch-icon" href="/logo-icon.jpg" />
+        <title>CarbonTrack - Track Your Carbon Footprint</title>
+        <meta name="description" content="Track, reduce, and monitor your carbon footprint with CarbonTrack" />
+      </head>
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`} suppressHydrationWarning>
         <Script
           id="theme-script"
