@@ -19,6 +19,7 @@ export default function MissionsPage() {
   const [user, setUser] = useState(null);
   const [showConfetti, setShowConfetti] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [initialLoading, setInitialLoading] = useState(true);
   
   const [notification, setNotification] = useState(null);
   const [isActivityModalOpen, setIsActivityModalOpen] = useState(false);
@@ -67,8 +68,14 @@ export default function MissionsPage() {
     const userData = JSON.parse(localStorage.getItem('user'));
     setUser(userData);
     if (userData) {
-      fetchMissions(userData.id);
-      fetchPlantHealth(userData.id);
+      Promise.all([
+        fetchMissions(userData.id),
+        fetchPlantHealth(userData.id)
+      ]).finally(() => {
+        setInitialLoading(false);
+      });
+    } else {
+      setInitialLoading(false);
     }
   }, []); // Empty deps - only run once on mount
 
@@ -174,6 +181,44 @@ export default function MissionsPage() {
   }, []);
 
   if (!user || !levelInfo) return null;
+
+  // Loading State
+  if (initialLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex font-sans">
+        <Sidebar />
+        <main className="flex-1 ml-64 p-8">
+          {/* Skeleton Header */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8 animate-pulse">
+            <div className="lg:col-span-2 bg-gray-200 rounded-3xl h-48"></div>
+            <div className="lg:col-span-1 bg-gray-200 rounded-3xl h-48"></div>
+          </div>
+          
+          {/* Skeleton Tabs */}
+          <div className="mb-6 bg-white rounded-2xl p-2 inline-flex gap-2 animate-pulse">
+            <div className="bg-gray-200 h-12 w-32 rounded-xl"></div>
+            <div className="bg-gray-200 h-12 w-32 rounded-xl"></div>
+            <div className="bg-gray-200 h-12 w-32 rounded-xl"></div>
+          </div>
+          
+          {/* Skeleton Stats */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6 animate-pulse">
+            <div className="bg-gray-200 rounded-2xl h-24"></div>
+            <div className="bg-gray-200 rounded-2xl h-24"></div>
+            <div className="bg-gray-200 rounded-2xl h-24"></div>
+            <div className="bg-gray-200 rounded-2xl h-24"></div>
+          </div>
+          
+          {/* Skeleton Missions */}
+          <div className="space-y-4 animate-pulse">
+            <div className="bg-gray-200 rounded-xl h-32"></div>
+            <div className="bg-gray-200 rounded-xl h-32"></div>
+            <div className="bg-gray-200 rounded-xl h-32"></div>
+          </div>
+        </main>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 flex font-sans">

@@ -165,14 +165,22 @@ export default function Dashboard() {
   const handleForceStreak = (newStreakValue) => {
     if (!user) return;
     
+    // Format tanggal konsisten dengan backend (YYYY-MM-DD dalam UTC)
+    const today = new Date();
+    const formattedDate = today.toISOString().split('T')[0]; // YYYY-MM-DD
+    
     // Kita manipulasi state user secara lokal
     const updatedUser = {
         ...user,
         current_streak: newStreakValue, // Paksa ganti angka streak
-        last_log_date: new Date().toISOString() // Paksa anggap sudah log hari ini
+        last_log_date: formattedDate // Format YYYY-MM-DD biar konsisten dengan isStreakActiveToday()
     };
 
-    console.log("🚀 Frontend forcing streak update:", newStreakValue);
+    console.log("🚀 Frontend forcing streak update:", {
+      newStreak: newStreakValue,
+      last_log_date: formattedDate,
+      comparison: formattedDate === new Date().toLocaleDateString('en-CA')
+    });
     
     // Update State Langsung (Biar UI berubah detik itu juga)
     setUser(updatedUser);
@@ -229,10 +237,6 @@ export default function Dashboard() {
                     <div className="absolute inset-0 bg-emerald-400 blur-xl opacity-50 animate-pulse"></div>
                     <div className="relative w-16 h-16 bg-gradient-to-br from-emerald-400 to-teal-500 text-white rounded-2xl shadow-xl flex items-center justify-center text-2xl font-bold">
                       {user.username.charAt(0).toUpperCase()}
-                    </div>
-                    {/* Level Badge */}
-                    <div className="absolute -bottom-2 -right-2 bg-gradient-to-r from-blue-500 to-indigo-600 text-white text-xs font-bold px-2 py-1 rounded-lg shadow-lg border-2 border-white">
-                      Lvl {user.level || user.current_level || 1}
                     </div>
                   </div>
                   <div>
