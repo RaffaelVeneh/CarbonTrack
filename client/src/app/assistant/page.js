@@ -1,11 +1,94 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import { useRouter } from 'next/navigation';
 import Sidebar from '@/components/Sidebar';
-import { Send, Bot, User, RotateCcw } from 'lucide-react';
+import { Send, Bot, User, RotateCcw, ExternalLink } from 'lucide-react';
+
+// Component untuk parsing pesan dengan link interaktif
+function MessageContent({ text, isBot }) {
+  const router = useRouter();
+  
+  if (!isBot) {
+    return <span>{text}</span>;
+  }
+
+  // Parse markdown-style links: [Text](/url)
+  const parts = [];
+  let lastIndex = 0;
+  const linkRegex = /\[([^\]]+)\]\(([^\)]+)\)/g;
+  let match;
+
+  while ((match = linkRegex.exec(text)) !== null) {
+    const [fullMatch, linkText, url] = match;
+    const startIndex = match.index;
+    
+    // Add text before link
+    if (startIndex > lastIndex) {
+      parts.push(
+        <span key={`text-${lastIndex}`}>
+          {text.substring(lastIndex, startIndex)}
+        </span>
+      );
+    }
+    
+    // Add clickable link
+    parts.push(
+      <button
+        key={`link-${startIndex}`}
+        onClick={() => router.push(url)}
+        className="inline-flex items-center gap-1 px-2 py-0.5 bg-white/20 hover:bg-white/30 rounded-md font-bold underline transition-all hover:scale-105 border border-white/30"
+      >
+        {linkText}
+        <ExternalLink size={14} />
+      </button>
+    );
+    
+    lastIndex = startIndex + fullMatch.length;
+  }
+  
+  // Add remaining text
+  if (lastIndex < text.length) {
+    parts.push(
+      <span key={`text-${lastIndex}`}>
+        {text.substring(lastIndex)}
+      </span>
+    );
+  }
+  
+  // If no links found, parse bold text
+  if (parts.length === 0) {
+    const boldRegex = /\*\*([^\*]+)\*\*/g;
+    const textParts = text.split(boldRegex);
+    
+    return (
+      <>
+        {textParts.map((part, idx) => 
+          idx % 2 === 1 ? (
+            <strong key={idx} className="font-extrabold text-yellow-200">{part}</strong>
+          ) : (
+            <span key={idx}>{part}</span>
+          )
+        )}
+      </>
+    );
+  }
+  
+  return <>{parts}</>;
+}
 
 const STORAGE_KEY = 'ecobot_chat_history';
-const DEFAULT_MESSAGE = { role: 'bot', text: 'Halo! Saya EcoBot 🌱. Tanyakan tips hemat listrik, transportasi, atau cara mengurangi sampah plastik!' };
+const DEFAULT_MESSAGE = { role: 'bot', text: 'Halo! Saya EcoBot 🌱, asisten resmi CarbonTrack!\n\nAku bisa bantu kamu dengan:\n• Tips hemat energi & lingkungan\n• Panduan fitur aplikasi\n• Cara naik level & dapat badge\n\nAda yang bisa dibantu?' };
+
+// Quick suggestion buttons
+const QUICK_SUGGESTIONS = [
+  { icon: '⚙️', text: 'Cara ganti username?', query: 'Bagaimana cara mengganti username?' },
+  { icon: '🎯', text: 'Cara naik level?', query: 'Bagaimana cara naik level?' },
+  { icon: '🏆', text: 'Cara dapat badge?', query: 'Bagaimana cara mendapatkan badge?' },
+  { icon: '🔥', text: 'Apa itu streak?', query: 'Bagaimana cara mendapatkan streak?' },
+  { icon: '💡', text: 'Tips hemat listrik', query: 'Berikan tips hemat energi listrik' },
+  { icon: '🚗', text: 'Tips transportasi', query: 'Berikan tips transportasi ramah lingkungan' }
+];
 
 export default function AssistantPage() {
   const [input, setInput] = useState('');
@@ -70,20 +153,19 @@ export default function AssistantPage() {
     // Shift+Enter akan default behavior (newline)
   };
   
-  const handleSend = async (e) => {
-    e.preventDefault();
-    if (!input.trim()) return;
+  const sendMessage = async (messageText) => {
+    if (!messageText.trim()) return;
 
     const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
     // 1. Tambahkan pesan user ke chat
-    const userMessage = { role: 'user', text: input };
+    const userMessage = { role: 'user', text: messageText };
     setMessages(prev => [...prev, userMessage]);
     setInput('');
     setLoading(true);
 
     try {
-      // 2. Kirim ke Backend AI (FIX: API_URL sudah include /api)
+      // 2. Kirim ke Backend AI
       const res = await fetch(`${API_URL}/ai/ask`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -95,10 +177,19 @@ export default function AssistantPage() {
       // 3. Tambahkan balasan Bot
       setMessages(prev => [...prev, { role: 'bot', text: data.answer }]);
     } catch (error) {
-      setMessages(prev => [...prev, { role: 'bot', text: 'Maaf, EcoBot sedang pusing (Server Error).' }]);
+      setMessages(prev => [...prev, { role: 'bot', text: 'Maaf, EcoBot sedang pusing (Server Error). 😵' }]);
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleSend = async (e) => {
+    e.preventDefault();
+    await sendMessage(input);
+  };
+
+  const handleQuickSuggestion = (query) => {
+    sendMessage(query);
   };
 
   return (
@@ -134,6 +225,27 @@ export default function AssistantPage() {
 
         {/* Area Chat Bubble - Auto-hide Scrollbar */}
         <div className="flex-1 overflow-y-auto px-4 py-2 space-y-3">
+          
+          {/* Quick Suggestions - Only show if first message */}
+          {messages.length === 1 && (
+            <div className="max-w-2xl mx-auto mb-4">
+              <p className="text-sm font-semibold text-gray-600 mb-3 text-center">💬 Pertanyaan Cepat:</p>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                {QUICK_SUGGESTIONS.map((suggestion, idx) => (
+                  <button
+                    key={idx}
+                    onClick={() => handleQuickSuggestion(suggestion.query)}
+                    disabled={loading}
+                    className="flex items-center gap-2 px-3 py-2 bg-white hover:bg-emerald-50 border-2 border-gray-200 hover:border-emerald-300 rounded-xl text-sm font-medium text-gray-700 transition-all hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <span className="text-lg">{suggestion.icon}</span>
+                    <span className="text-left">{suggestion.text}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
           {messages.map((msg, idx) => (
             <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
               <div className={`flex items-start gap-2.5 max-w-2xl ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}>
@@ -153,7 +265,7 @@ export default function AssistantPage() {
                     ? 'bg-white text-gray-800 rounded-tr-sm border border-gray-100' 
                     : 'bg-gradient-to-br from-emerald-600 to-teal-600 text-white rounded-tl-sm'
                 }`}>
-                  {msg.text}
+                  <MessageContent text={msg.text} isBot={msg.role === 'bot'} />
                 </div>
               </div>
             </div>
