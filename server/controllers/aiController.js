@@ -151,7 +151,7 @@ Jika user tanya di luar topik (misal politik, olahraga), arahkan kembali: "Maaf,
 
 exports.askAssistant = async (req, res) => {
     try {
-        const { question, userContext } = req.body;
+        const { question, userContext, chatHistory } = req.body;
         
         if (!question || !question.trim()) {
             return res.json({ answer: "Halo! Ada yang bisa EcoBot bantu? 🌱" });
@@ -159,6 +159,7 @@ exports.askAssistant = async (req, res) => {
 
         console.log(`[AI] User asked: "${question.substring(0, 100)}..."`);
         console.log(`[AI] User context:`, userContext);
+        console.log(`[AI] Chat history length:`, chatHistory?.length || 0);
 
         // Enhance system prompt with user context
         let enhancedPrompt = SYSTEM_PROMPT;
@@ -177,6 +178,7 @@ INSTRUKSI KHUSUS:
 - Jika user ingin ubah theme, kirim ACTION: {"action": "toggleTheme"}
 - Jika user ingin ke page tertentu, kirim ACTION: {"action": "navigate", "url": "/page"}
 - Jika user tanya misi mudah, berikan misi level mereka dengan format ACTION BUTTON
+- INGAT KONTEKS PERCAKAPAN SEBELUMNYA untuk menjawab pertanyaan follow-up seperti "tadi aku tanya apa?", "jelaskan lebih detail", dll
 
 FORMAT ACTION (di akhir jawaban):
 [ACTION:{"action":"toggleTheme"}]
@@ -188,17 +190,37 @@ Gunakan ACTION hanya jika user explicitly minta (ubah theme, lihat misi, ke page
 
         // === GROQ AI INTEGRATION ===
         try {
+            // Build conversation messages with history
+            const messages = [
+                {
+                    role: 'system',
+                    content: enhancedPrompt
+                }
+            ];
+
+            // Add chat history (limit to last 10 messages to avoid token limit)
+            if (chatHistory && Array.isArray(chatHistory) && chatHistory.length > 0) {
+                // Filter out the default bot message and limit history
+                const relevantHistory = chatHistory
+                    .filter(msg => msg.role !== 'bot' || !msg.text.includes('Halo! Saya EcoBot'))
+                    .slice(-10); // Last 10 messages only
+
+                relevantHistory.forEach(msg => {
+                    messages.push({
+                        role: msg.role === 'bot' ? 'assistant' : 'user',
+                        content: msg.text
+                    });
+                });
+            }
+
+            // Add current question
+            messages.push({
+                role: 'user',
+                content: question
+            });
+
             const chatCompletion = await groq.chat.completions.create({
-                messages: [
-                    {
-                        role: 'system',
-                        content: enhancedPrompt
-                    },
-                    {
-                        role: 'user',
-                        content: question
-                    }
-                ],
+                messages: messages,
                 model: 'llama-3.3-70b-versatile',
                 temperature: 0.7,
                 max_tokens: 1000,

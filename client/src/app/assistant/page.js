@@ -424,19 +424,26 @@ export default function AssistantPage() {
         totalEmission: user.total_emission || 0
       } : null;
 
-      // 3. Kirim ke Backend AI dengan context
+      // 3. Prepare chat history (current messages before the new user message)
+      const chatHistory = messages.map(msg => ({
+        role: msg.role,
+        text: msg.text
+      }));
+
+      // 4. Kirim ke Backend AI dengan context dan chat history
       const res = await fetch(`${API_URL}/ai/ask`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
           question: userMessage.text,
-          userContext 
+          userContext,
+          chatHistory // Include conversation history
         })
       });
       
       const data = await res.json();
 
-      // 4. Tambahkan balasan Bot dengan actions
+      // 5. Tambahkan balasan Bot dengan actions
       setMessages(prev => [...prev, { 
         role: 'bot', 
         text: data.answer,
