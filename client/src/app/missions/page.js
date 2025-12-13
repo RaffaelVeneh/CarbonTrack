@@ -201,6 +201,10 @@ export default function MissionsPage() {
           if (activeTab === 'daily') {
             setDailyMissionsRefreshKey(prev => prev + 1);
           }
+          // Refresh weekly missions jika sedang di tab weekly
+          if (activeTab === 'weekly') {
+            setWeeklyMissionsRefreshKey(prev => prev + 1);
+          }
         }} 
         initialActivityId={targetActivityId} 
       />
