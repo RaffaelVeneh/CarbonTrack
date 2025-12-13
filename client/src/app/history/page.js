@@ -156,8 +156,8 @@ export default function HistoryPage() {
       <main className="flex-1 ml-64 p-8">
         {/* Enhanced Header */}
         <div className="mb-8">
-          <div className="relative overflow-hidden">
-            <div className="absolute inset-0 bg-gradient-to-r from-emerald-400/10 via-teal-400/10 to-blue-400/10 animate-gradient"></div>
+          <div className="relative overflow-hidden rounded-3xl">
+            <div className="absolute inset-0 bg-gradient-to-r from-emerald-400/10 via-teal-400/10 to-blue-400/10 animate-gradient rounded-3xl"></div>
             <div className="relative bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm p-8 rounded-3xl shadow-xl border-2 border-white dark:border-gray-700">
               <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6">
                 <div className="flex items-center gap-4">
@@ -171,7 +171,7 @@ export default function HistoryPage() {
                     <h1 className="text-4xl font-extrabold bg-gradient-to-r from-emerald-600 via-teal-600 to-blue-600 dark:from-emerald-400 dark:via-teal-400 dark:to-blue-400 bg-clip-text text-transparent">
                       Riwayat Aktivitas
                     </h1>
-                    <p className="text-gray-600 dark:text-gray-300 mt-1 font-medium">Jejak langkahmu dalam menjaga bumi 🌍</p>
+                    <p className="text-gray-600 dark:text-gray-300 mt-1 font-medium">Jejak langkahmu dalam menjaga bumi</p>
                   </div>
                 </div>
 

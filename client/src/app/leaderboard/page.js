@@ -198,8 +198,8 @@ export default function LeaderboardPage() {
       <main className="flex-1 ml-64 p-8">
         
         {/* Animated Header */}
-        <div className="relative mb-8 overflow-hidden">
-          <div className="absolute inset-0 bg-gradient-to-r from-yellow-400/10 via-emerald-400/10 to-teal-400/10 animate-gradient"></div>
+        <div className="relative mb-8 overflow-hidden rounded-3xl">
+          <div className="absolute inset-0 bg-gradient-to-r from-yellow-400/10 via-emerald-400/10 to-teal-400/10 animate-gradient rounded-3xl"></div>
           <div className="relative bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm p-8 rounded-3xl shadow-xl border-2 border-white dark:border-gray-700">
             <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6">
               <div className="flex items-center gap-4">
@@ -213,7 +213,7 @@ export default function LeaderboardPage() {
                   <h1 className="text-4xl font-extrabold bg-gradient-to-r from-yellow-600 via-emerald-600 to-teal-600 dark:from-yellow-400 dark:via-emerald-400 dark:to-teal-400 bg-clip-text text-transparent">
                     Hall of Fame
                   </h1>
-                  <p className="text-gray-600 dark:text-gray-300 mt-1 font-medium">Pahlawan Lingkungan Terbaik 🌍</p>
+                  <p className="text-gray-600 dark:text-gray-300 mt-1 font-medium">Pahlawan Lingkungan Terbaik</p>
                 </div>
               </div>
 

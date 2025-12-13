@@ -43,6 +43,33 @@ html.dark {
 * {
   scrollbar-width: thin;
   scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+  cursor: default;
+}
+
+/* Reset cursor to default for all elements */
+body {
+  cursor: default;
+}
+
+/* Keep pointer cursor only for interactive elements */
+button,
+a,
+[role="button"],
+[role="link"],
+.cursor-pointer {
+  cursor: pointer !important;
+}
+
+/* Keep text cursor for input fields */
+input[type="text"],
+input[type="email"],
+input[type="password"],
+input[type="search"],
+input[type="number"],
+input[type="tel"],
+input[type="url"],
+textarea {
+  cursor: text !important;
 }
 
 /* === Custom Auto-hide Scrollbar for Textarea === */

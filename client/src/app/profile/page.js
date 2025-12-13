@@ -104,8 +104,8 @@ export default function ProfilePage() {
       <main className="flex-1 ml-64 p-8">
         {/* Enhanced Header */}
         <div className="mb-8">
-          <div className="relative overflow-visible">
-            <div className="absolute inset-0 bg-gradient-to-r from-blue-400/10 via-purple-400/10 to-pink-400/10 animate-gradient"></div>
+          <div className="relative overflow-visible rounded-3xl">
+            <div className="absolute inset-0 bg-gradient-to-r from-blue-400/10 via-purple-400/10 to-pink-400/10 animate-gradient rounded-3xl"></div>
             <div className="relative bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm p-6 rounded-3xl shadow-xl border-2 border-white dark:border-gray-700">
               {/* Top Section: Avatar + Basic Info */}
               <div className="flex items-center gap-6 mb-6">
@@ -303,7 +303,7 @@ export default function ProfilePage() {
                             <Trophy className="text-yellow-500" size={32} />
                             Koleksi Penghargaan
                         </h3>
-                        <p className="text-gray-600 dark:text-gray-300 font-medium">Selesaikan misi untuk membuka badge eksklusif! 🎯</p>
+                        <p className="text-gray-600 dark:text-gray-300 font-medium">Selesaikan misi untuk membuka badge eksklusif!</p>
                     </div>
                     
                     {/* Enhanced Progress Bar */}

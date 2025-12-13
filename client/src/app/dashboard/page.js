@@ -228,8 +228,8 @@ export default function Dashboard() {
       <main className="flex-1 ml-64 p-8">
         {/* Enhanced Header */}
         <div className="mb-8 relative z-10">
-          <div className="relative overflow-visible">
-            <div className="absolute inset-0 bg-gradient-to-r from-emerald-400/10 via-teal-400/10 to-blue-400/10 animate-gradient"></div>
+          <div className="relative overflow-visible rounded-3xl">
+            <div className="absolute inset-0 bg-gradient-to-r from-emerald-400/10 via-teal-400/10 to-blue-400/10 animate-gradient rounded-3xl"></div>
             <div className="relative bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm p-8 rounded-3xl shadow-xl border-2 border-white dark:border-gray-700 overflow-visible">
               <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6">
                 <div className="flex items-center gap-4">
@@ -242,7 +242,7 @@ export default function Dashboard() {
                   <div>
                     <div className="flex items-center gap-3 mb-1">
                       <h1 className="text-4xl font-extrabold bg-gradient-to-r from-emerald-600 via-teal-600 to-blue-600 bg-clip-text text-transparent">
-                        Halo, {user.username}! 👋
+                        Halo, {user.username}!
                       </h1>
                       <div className="flex items-center gap-2 px-3 py-1.5 bg-gradient-to-r from-blue-100 to-indigo-100 dark:from-blue-900/40 dark:to-indigo-900/40 rounded-full border-2 border-blue-200 dark:border-blue-700">
                         <Award className="text-blue-600 dark:text-blue-400" size={18} />
@@ -307,8 +307,8 @@ export default function Dashboard() {
 
                   <div className="flex-1 text-center md:text-left">
                       <div className="flex items-center gap-2 mb-2">
-                        <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-100">Status Pulau Virtual</h2>
                         {user.island_health >= 80 && <Sparkles className="text-yellow-500 dark:text-yellow-400" size={24} />}
+                        <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-100">Status Pulau Virtual</h2>
                       </div>
                       <p className={`text-lg font-semibold mb-6 ${treeConfig.color}`}>
                           "{treeConfig.text}"

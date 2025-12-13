@@ -67,7 +67,7 @@ export default function Sidebar() {
         {/* ----------------------------------- */}
 
         {/* MENU NAVIGASI */}
-        <nav className="flex-1 p-4 space-y-2">
+        <nav className="flex-1 py-4 pl-4 pr-0 space-y-2">
           {menuItems.map((item) => {
             const Icon = item.icon;
             const isActive = pathname === item.href;
@@ -76,14 +76,17 @@ export default function Sidebar() {
               <Link
                 key={item.href}
                 href={item.href}
-                className={`flex items-center gap-3 px-4 py-3 rounded-lg font-medium transition-all ${
+                className={`flex items-center gap-3 px-4 py-3 font-bold transition-all relative ${
                   isActive
-                    ? 'bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-700'
-                    : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 hover:text-emerald-600 dark:hover:text-emerald-400'
+                    ? 'bg-gradient-to-r from-emerald-600 to-emerald-500 text-white rounded-l-xl mr-0 pr-8 shadow-lg shadow-emerald-500/30 border-l-4 border-emerald-700'
+                    : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 hover:text-emerald-600 dark:hover:text-emerald-400 rounded-lg mr-4'
                 }`}
+                style={isActive ? {
+                  boxShadow: '0 4px 6px -1px rgba(16, 185, 129, 0.3), 0 2px 4px -1px rgba(16, 185, 129, 0.2), inset 0 -2px 4px rgba(0, 0, 0, 0.1)'
+                } : {}}
               >
-                <Icon size={20} />
-                {item.name}
+                <Icon size={20} className={isActive ? 'drop-shadow-md' : ''} />
+                <span className={isActive ? 'drop-shadow-md' : ''}>{item.name}</span>
               </Link>
             );
           })}
