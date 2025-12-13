@@ -30,14 +30,14 @@ export default function EcoPlant({ plantHealth = 0 }) {
   const progressPercent = stage === 0 ? 0 : Math.min(100, ((plantHealth - healthRange.min) / (healthRange.max - healthRange.min)) * 100);
 
   return (
-    <div className="bg-white rounded-3xl p-6 shadow-xl border border-emerald-100 flex flex-col h-full relative overflow-hidden">
+    <div className="bg-white dark:bg-gray-800 rounded-3xl p-6 shadow-xl border border-emerald-100 dark:border-gray-700 flex flex-col h-full relative overflow-hidden">
       
       {/* Background Langit */}
-      <div className="absolute inset-0 bg-gradient-to-b from-sky-50 to-white pointer-events-none"></div>
+      <div className="absolute inset-0 bg-gradient-to-b from-sky-50 to-white dark:from-gray-900 dark:to-gray-800 pointer-events-none"></div>
 
       {/* --- HEADER TEKS --- */}
       <div className="relative z-10 text-center mb-2">
-        <h3 className="font-extrabold text-gray-800 text-lg">
+        <h3 className="font-extrabold text-gray-800 dark:text-gray-100 text-lg">
             {stage === 0 && "Pot Kosong"}
             {stage === 1 && "Benih Kecil"}
             {stage === 2 && "Tunas Hijau"}
@@ -45,7 +45,7 @@ export default function EcoPlant({ plantHealth = 0 }) {
             {stage === 4 && "Siap Berbunga"}
             {stage === 5 && "Bunga Matahari"}
         </h3>
-        <p className="text-xs text-gray-500">
+        <p className="text-xs text-gray-500 dark:text-gray-400">
             {stage < 5 ? "Selesaikan misi harian untuk tumbuh!" : "Kamu hebat! Panen berhasil."}
         </p>
         
@@ -53,11 +53,11 @@ export default function EcoPlant({ plantHealth = 0 }) {
         <div className="mt-3 flex justify-center">
           {stage < 5 ? (
               <div className="max-w-[180px] w-full">
-                  <div className="flex justify-between text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">
+                  <div className="flex justify-between text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-1">
                       <span>Stage</span>
                       <span>{plantHealth}/{healthRange.next}</span>
                   </div>
-                  <div className="w-full bg-gray-100 rounded-full h-2 overflow-hidden border border-gray-200">
+                  <div className="w-full bg-gray-100 dark:bg-gray-700 rounded-full h-2 overflow-hidden border border-gray-200 dark:border-gray-600">
                       <div 
                           className="bg-gradient-to-r from-green-400 to-emerald-500 h-full transition-all duration-700 ease-out" 
                           style={{ width: `${progressPercent}%` }}
@@ -65,8 +65,8 @@ export default function EcoPlant({ plantHealth = 0 }) {
                   </div>
               </div>
           ) : (
-              <div className="text-center bg-yellow-100/50 px-4 py-1.5 rounded-lg border border-yellow-200">
-                  <p className="text-xs font-bold text-yellow-700">🌻 Mekar!</p>
+              <div className="text-center bg-yellow-100/50 dark:bg-yellow-900/30 px-4 py-1.5 rounded-lg border border-yellow-200 dark:border-yellow-700">
+                  <p className="text-xs font-bold text-yellow-700 dark:text-yellow-400">🌻 Mekar!</p>
               </div>
           )}
         </div>
@@ -175,19 +175,19 @@ export default function EcoPlant({ plantHealth = 0 }) {
       {/* --- FOOTER: HEALTH BAR --- PINDAH KE BAWAH (Jadi panjang) */}
       <div className="relative z-10 mt-auto">
         <div className="flex items-center gap-2">
-          <Heart className="text-red-500 flex-shrink-0" size={18} fill="currentColor" />
+          <Heart className="text-red-500 dark:text-red-400 flex-shrink-0" size={18} fill="currentColor" />
           <div className="flex-1">
-            <div className="flex justify-between text-[10px] font-bold text-gray-600 mb-1">
+            <div className="flex justify-between text-[10px] font-bold text-gray-600 dark:text-gray-300 mb-1">
               <span>Nyawa Bunga</span>
-              <span className="text-red-500">{plantHealth} HP</span>
+              <span className="text-red-500 dark:text-red-400">{plantHealth} HP</span>
             </div>
-            <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden border border-gray-300">
+            <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-3 overflow-hidden border border-gray-300 dark:border-gray-600">
               <div 
                 className="bg-gradient-to-r from-red-500 to-pink-500 h-full transition-all duration-500" 
                 style={{ width: `${Math.min(100, (plantHealth / 100) * 100)}%` }}
               ></div>
             </div>
-            <p className="text-[9px] text-gray-400 mt-1 text-center">
+            <p className="text-[9px] text-gray-400 dark:text-gray-500 mt-1 text-center">
               {plantHealth < 25 ? '⚠️ Nyawa rendah! Kerjakan misi harian.' : 
                plantHealth < 50 ? 'Jaga kesehatan bungamu!' :
                plantHealth < 75 ? 'Bunga tumbuh sehat!' :

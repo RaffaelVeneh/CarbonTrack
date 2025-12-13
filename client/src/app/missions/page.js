@@ -185,35 +185,35 @@ export default function MissionsPage() {
   // Loading State
   if (initialLoading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex font-sans">
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex font-sans">
         <Sidebar />
         <main className="flex-1 ml-64 p-8">
           {/* Skeleton Header */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8 animate-pulse">
-            <div className="lg:col-span-2 bg-gray-200 rounded-3xl h-48"></div>
-            <div className="lg:col-span-1 bg-gray-200 rounded-3xl h-48"></div>
+            <div className="lg:col-span-2 bg-gray-200 dark:bg-gray-700 rounded-3xl h-48"></div>
+            <div className="lg:col-span-1 bg-gray-200 dark:bg-gray-700 rounded-3xl h-48"></div>
           </div>
           
           {/* Skeleton Tabs */}
-          <div className="mb-6 bg-white rounded-2xl p-2 inline-flex gap-2 animate-pulse">
-            <div className="bg-gray-200 h-12 w-32 rounded-xl"></div>
-            <div className="bg-gray-200 h-12 w-32 rounded-xl"></div>
-            <div className="bg-gray-200 h-12 w-32 rounded-xl"></div>
+          <div className="mb-6 bg-white dark:bg-gray-800 rounded-2xl p-2 inline-flex gap-2 animate-pulse">
+            <div className="bg-gray-200 dark:bg-gray-700 h-12 w-32 rounded-xl"></div>
+            <div className="bg-gray-200 dark:bg-gray-700 h-12 w-32 rounded-xl"></div>
+            <div className="bg-gray-200 dark:bg-gray-700 h-12 w-32 rounded-xl"></div>
           </div>
           
           {/* Skeleton Stats */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6 animate-pulse">
-            <div className="bg-gray-200 rounded-2xl h-24"></div>
-            <div className="bg-gray-200 rounded-2xl h-24"></div>
-            <div className="bg-gray-200 rounded-2xl h-24"></div>
-            <div className="bg-gray-200 rounded-2xl h-24"></div>
+            <div className="bg-gray-200 dark:bg-gray-700 rounded-2xl h-24"></div>
+            <div className="bg-gray-200 dark:bg-gray-700 rounded-2xl h-24"></div>
+            <div className="bg-gray-200 dark:bg-gray-700 rounded-2xl h-24"></div>
+            <div className="bg-gray-200 dark:bg-gray-700 rounded-2xl h-24"></div>
           </div>
           
           {/* Skeleton Missions */}
           <div className="space-y-4 animate-pulse">
-            <div className="bg-gray-200 rounded-xl h-32"></div>
-            <div className="bg-gray-200 rounded-xl h-32"></div>
-            <div className="bg-gray-200 rounded-xl h-32"></div>
+            <div className="bg-gray-200 dark:bg-gray-700 rounded-xl h-32"></div>
+            <div className="bg-gray-200 dark:bg-gray-700 rounded-xl h-32"></div>
+            <div className="bg-gray-200 dark:bg-gray-700 rounded-xl h-32"></div>
           </div>
         </main>
       </div>
@@ -221,7 +221,7 @@ export default function MissionsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex font-sans">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex font-sans">
       <Sidebar />
       
       {showConfetti && (
@@ -283,8 +283,8 @@ export default function MissionsPage() {
             {/* KOTAK KANAN: TAMAGOTCHI TANAMAN (Lebar 1 Kolom) */}
             <div className="lg:col-span-1 h-full min-h-[250px]">
                 <Suspense fallback={
-                  <div className="bg-white rounded-3xl p-6 shadow-xl border border-emerald-100 flex items-center justify-center h-full">
-                    <div className="animate-pulse text-emerald-600">Loading plant...</div>
+                  <div className="bg-white dark:bg-gray-800 rounded-3xl p-6 shadow-xl border border-emerald-100 dark:border-gray-700 flex items-center justify-center h-full">
+                    <div className="animate-pulse text-emerald-600 dark:text-emerald-400">Loading plant...</div>
                   </div>
                 }>
                   <EcoPlant plantHealth={plantHealth} />
@@ -295,13 +295,13 @@ export default function MissionsPage() {
 
         {/* --- TAB NAVIGATION --- */}
         <div className="mb-6">
-          <div className="bg-white rounded-2xl p-2 shadow-sm inline-flex gap-2">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl p-2 shadow-sm inline-flex gap-2">
             <button
               onClick={() => handleTabSwitch('main')}
               className={`px-6 py-3 rounded-xl font-bold transition-all ${
                 activeTab === 'main'
                   ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-md'
-                  : 'text-gray-600 hover:bg-gray-50'
+                  : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
               }`}
             >
               <span className="flex items-center gap-2">
@@ -314,7 +314,7 @@ export default function MissionsPage() {
               className={`px-6 py-3 rounded-xl font-bold transition-all ${
                 activeTab === 'daily'
                   ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-md'
-                  : 'text-gray-600 hover:bg-gray-50'
+                  : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
               }`}
             >
               <span className="flex items-center gap-2">
@@ -326,7 +326,7 @@ export default function MissionsPage() {
               className={`px-6 py-3 rounded-xl font-bold transition-all ${
                 activeTab === 'weekly'
                   ? 'bg-gradient-to-r from-blue-500 to-purple-500 text-white shadow-md'
-                  : 'text-gray-600 hover:bg-gray-50'
+                  : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
               }`}
             >
               <span className="flex items-center gap-2">
@@ -341,49 +341,49 @@ export default function MissionsPage() {
           <>
             {/* Mission Stats Summary */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-              <div className="bg-gradient-to-br from-emerald-50 to-teal-50 p-4 rounded-2xl border-2 border-emerald-100">
+              <div className="bg-gradient-to-br from-emerald-50 to-teal-50 dark:from-emerald-900/20 dark:to-teal-900/20 p-4 rounded-2xl border-2 border-emerald-100 dark:border-emerald-700/30">
                 <div className="flex items-center gap-3">
                   <div className="p-2 bg-emerald-500 rounded-xl">
                     <Target className="text-white" size={20} />
                   </div>
                   <div>
-                    <p className="text-xs text-gray-600 font-semibold">Total Misi</p>
-                    <p className="text-2xl font-black text-emerald-700">{missions.length}</p>
+                    <p className="text-xs text-gray-600 dark:text-gray-400 font-semibold">Total Misi</p>
+                    <p className="text-2xl font-black text-emerald-700 dark:text-emerald-400">{missions.length}</p>
                   </div>
                 </div>
               </div>
-              <div className="bg-gradient-to-br from-blue-50 to-indigo-50 p-4 rounded-2xl border-2 border-blue-100">
+              <div className="bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 p-4 rounded-2xl border-2 border-blue-100 dark:border-blue-700/30">
                 <div className="flex items-center gap-3">
                   <div className="p-2 bg-blue-500 rounded-xl">
                     <CheckCircle className="text-white" size={20} />
                   </div>
                   <div>
-                    <p className="text-xs text-gray-600 font-semibold">Selesai</p>
-                    <p className="text-2xl font-black text-blue-700">{completedMissionsCount}</p>
+                    <p className="text-xs text-gray-600 dark:text-gray-400 font-semibold">Selesai</p>
+                    <p className="text-2xl font-black text-blue-700 dark:text-blue-400">{completedMissionsCount}</p>
                   </div>
                 </div>
               </div>
-              <div className="bg-gradient-to-br from-purple-50 to-pink-50 p-4 rounded-2xl border-2 border-purple-100">
+              <div className="bg-gradient-to-br from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20 p-4 rounded-2xl border-2 border-purple-100 dark:border-purple-700/30">
                 <div className="flex items-center gap-3">
                   <div className="p-2 bg-purple-500 rounded-xl">
                     <Zap className="text-white" size={20} />
                   </div>
                   <div>
-                    <p className="text-xs text-gray-600 font-semibold">Bisa Diklaim</p>
-                    <p className="text-2xl font-black text-purple-700">
+                    <p className="text-xs text-gray-600 dark:text-gray-400 font-semibold">Bisa Diklaim</p>
+                    <p className="text-2xl font-black text-purple-700 dark:text-purple-400">
                       {missions.filter(m => m.is_completable && !m.is_claimed).length}
                     </p>
                   </div>
                 </div>
               </div>
-              <div className="bg-gradient-to-br from-yellow-50 to-orange-50 p-4 rounded-2xl border-2 border-yellow-100">
+              <div className="bg-gradient-to-br from-yellow-50 to-orange-50 dark:from-yellow-900/20 dark:to-orange-900/20 p-4 rounded-2xl border-2 border-yellow-100 dark:border-yellow-700/30">
                 <div className="flex items-center gap-3">
                   <div className="p-2 bg-yellow-500 rounded-xl">
                     <PartyPopper className="text-white" size={20} />
                   </div>
                   <div>
-                    <p className="text-xs text-gray-600 font-semibold">Total XP</p>
-                    <p className="text-2xl font-black text-yellow-700">
+                    <p className="text-xs text-gray-600 dark:text-gray-400 font-semibold">Total XP</p>
+                    <p className="text-2xl font-black text-yellow-700 dark:text-yellow-400">
                       {missions.reduce((sum, m) => sum + (m.is_claimed ? m.xp_reward : 0), 0)}
                     </p>
                   </div>
@@ -391,85 +391,85 @@ export default function MissionsPage() {
               </div>
             </div>
 
-            <h3 className="text-2xl font-bold text-gray-800 mb-6 flex items-center gap-2">
-                <Target className="text-emerald-600"/> Misi Tersedia
+            <h3 className="text-2xl font-bold text-gray-800 dark:text-gray-100 mb-6 flex items-center gap-2">
+                <Target className="text-emerald-600 dark:text-emerald-400"/> Misi Tersedia
             </h3>
         
         {/* Loading State */}
         {isLoading ? (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {[1, 2, 3, 4].map((i) => (
-              <div key={i} className="p-6 rounded-3xl border-2 border-gray-100 bg-white animate-pulse">
+              <div key={i} className="p-6 rounded-3xl border-2 border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800 animate-pulse">
                 <div className="flex justify-between items-start mb-4">
                   <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 bg-gray-200 rounded-2xl"></div>
-                    <div className="h-6 w-16 bg-gray-200 rounded-md"></div>
+                    <div className="w-12 h-12 bg-gray-200 dark:bg-gray-700 rounded-2xl"></div>
+                    <div className="h-6 w-16 bg-gray-200 dark:bg-gray-700 rounded-md"></div>
                   </div>
-                  <div className="h-6 w-20 bg-gray-200 rounded-full"></div>
+                  <div className="h-6 w-20 bg-gray-200 dark:bg-gray-700 rounded-full"></div>
                 </div>
-                <div className="h-6 w-3/4 bg-gray-200 rounded mb-2"></div>
-                <div className="h-4 w-full bg-gray-200 rounded mb-4"></div>
-                <div className="h-10 w-full bg-gray-200 rounded-xl"></div>
+                <div className="h-6 w-3/4 bg-gray-200 dark:bg-gray-700 rounded mb-2"></div>
+                <div className="h-4 w-full bg-gray-200 dark:bg-gray-700 rounded mb-4"></div>
+                <div className="h-10 w-full bg-gray-200 dark:bg-gray-700 rounded-xl"></div>
               </div>
             ))}
           </div>
         ) : missions.length === 0 ? (
           <div className="text-center py-16">
-            <div className="inline-block p-6 bg-gray-50 rounded-full mb-4">
-              <Target className="text-gray-300" size={64} />
+            <div className="inline-block p-6 bg-gray-50 dark:bg-gray-800 rounded-full mb-4">
+              <Target className="text-gray-300 dark:text-gray-600" size={64} />
             </div>
-            <h3 className="text-xl font-bold text-gray-600 mb-2">Tidak Ada Misi Tersedia</h3>
-            <p className="text-gray-500">Misi baru akan segera hadir!</p>
+            <h3 className="text-xl font-bold text-gray-600 dark:text-gray-300 mb-2">Tidak Ada Misi Tersedia</h3>
+            <p className="text-gray-500 dark:text-gray-400">Misi baru akan segera hadir!</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {missions.map((mission) => (
             <div key={mission.id} className={`p-6 rounded-3xl border-2 relative overflow-hidden transition-all hover:-translate-y-1 duration-300
                 ${mission.is_locked 
-                    ? 'bg-gray-100 border-gray-200 opacity-70' 
-                    : 'bg-white border-gray-100 shadow-sm hover:shadow-md hover:border-emerald-200'}
+                    ? 'bg-gray-100 dark:bg-gray-800 border-gray-200 dark:border-gray-700 opacity-70' 
+                    : 'bg-white dark:bg-gray-800 border-gray-100 dark:border-gray-700 shadow-sm hover:shadow-md hover:border-emerald-200 dark:hover:border-emerald-700'}
             `}>
               
               {mission.is_locked && (
-                  <div className="absolute inset-0 bg-gray-100/60 backdrop-blur-[2px] flex items-center justify-center z-10">
-                      <div className="bg-white px-4 py-2 rounded-full shadow-sm flex items-center gap-2 border border-gray-200">
-                        <Lock size={16} className="text-gray-400"/>
-                        <span className="font-bold text-gray-500 text-xs uppercase tracking-wide">Level {mission.min_level}</span>
+                  <div className="absolute inset-0 bg-gray-100/60 dark:bg-gray-900/60 backdrop-blur-[2px] flex items-center justify-center z-10">
+                      <div className="bg-white dark:bg-gray-800 px-4 py-2 rounded-full shadow-sm flex items-center gap-2 border border-gray-200 dark:border-gray-700">
+                        <Lock size={16} className="text-gray-400 dark:text-gray-500"/>
+                        <span className="font-bold text-gray-500 dark:text-gray-400 text-xs uppercase tracking-wide">Level {mission.min_level}</span>
                       </div>
                   </div>
               )}
 
               <div className="flex justify-between items-start mb-4">
                 <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 bg-gray-50 rounded-2xl flex items-center justify-center text-2xl shadow-inner">
+                  <div className="w-12 h-12 bg-gray-50 dark:bg-gray-700 rounded-2xl flex items-center justify-center text-2xl shadow-inner">
                     {mission.icon || '🎯'}
                   </div>
                   <div>
                     <span className={`text-[10px] font-bold px-2 py-1 rounded-md uppercase tracking-wider ${
-                      mission.difficulty === 'easy' ? 'bg-emerald-100 text-emerald-700' :
-                      mission.difficulty === 'medium' ? 'bg-yellow-100 text-yellow-700' :
-                      'bg-red-100 text-red-700'
+                      mission.difficulty === 'easy' ? 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-400' :
+                      mission.difficulty === 'medium' ? 'bg-yellow-100 dark:bg-yellow-900/40 text-yellow-700 dark:text-yellow-400' :
+                      'bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-400'
                     }`}>
                       {mission.difficulty}
                     </span>
                   </div>
                 </div>
                 <div className="text-right">
-                  <span className="bg-blue-50 text-blue-600 text-xs font-bold px-3 py-1.5 rounded-full border border-blue-100">+{mission.xp_reward} XP</span>
+                  <span className="bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 text-xs font-bold px-3 py-1.5 rounded-full border border-blue-100 dark:border-blue-700">+{mission.xp_reward} XP</span>
                 </div>
               </div>
               
-              <h3 className="text-lg font-bold text-gray-800 mb-2 leading-tight">{mission.title}</h3>
-              <p className="text-gray-500 text-sm mb-5 leading-relaxed">{mission.description}</p>
+              <h3 className="text-lg font-bold text-gray-800 dark:text-gray-100 mb-2 leading-tight">{mission.title}</h3>
+              <p className="text-gray-500 dark:text-gray-400 text-sm mb-5 leading-relaxed">{mission.description}</p>
               
               {!mission.is_claimed && !mission.is_locked && (
                 <div className="mb-5">
                   <div className="flex justify-between text-xs mb-1.5">
-                      <span className="text-gray-500 font-semibold">Progress</span>
-                      <span className="font-bold text-emerald-600">{mission.progress_text}</span>
+                      <span className="text-gray-500 dark:text-gray-400 font-semibold">Progress</span>
+                      <span className="font-bold text-emerald-600 dark:text-emerald-400">{mission.progress_text}</span>
                   </div>
-                  <div className="w-full bg-gray-100 rounded-full h-2.5 overflow-hidden">
-                      <div className="bg-emerald-500 h-full transition-all duration-500" style={{ width: `${Math.min(100, (mission.progress / mission.target_value) * 100)}%` }}></div>
+                  <div className="w-full bg-gray-100 dark:bg-gray-700 rounded-full h-2.5 overflow-hidden">
+                      <div className="bg-emerald-500 dark:bg-emerald-400 h-full transition-all duration-500" style={{ width: `${Math.min(100, (mission.progress / mission.target_value) * 100)}%` }}></div>
                   </div>
                 </div>
               )}
@@ -478,7 +478,7 @@ export default function MissionsPage() {
                   {mission.is_completable && !mission.is_claimed && (
                       <button 
                         onClick={() => handleClaim(mission.id)} 
-                        className="flex-1 py-3 rounded-xl font-bold flex items-center justify-center gap-2 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white shadow-lg shadow-emerald-200 transform active:scale-95 transition-all"
+                        className="flex-1 py-3 rounded-xl font-bold flex items-center justify-center gap-2 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white shadow-lg shadow-emerald-200 dark:shadow-emerald-900/50 transform active:scale-95 transition-all"
                       >
                         <Zap size={18} fill="currentColor" /> Klaim Reward
                       </button>
@@ -487,14 +487,14 @@ export default function MissionsPage() {
                   {!mission.is_completable && !mission.is_claimed && !mission.is_locked && (
                       <button 
                         onClick={() => handleDoMission(mission.required_activity_id)} 
-                        className="flex-1 py-3 rounded-xl font-bold flex items-center justify-center gap-2 bg-white text-emerald-600 hover:bg-emerald-50 border-2 border-emerald-100 hover:border-emerald-200 transition-all"
+                        className="flex-1 py-3 rounded-xl font-bold flex items-center justify-center gap-2 bg-white dark:bg-gray-700 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 border-2 border-emerald-100 dark:border-emerald-700 hover:border-emerald-200 dark:hover:border-emerald-600 transition-all"
                       >
                         Lakukan <ArrowRight size={18} />
                       </button>
                   )}
 
                   {mission.is_claimed && (
-                      <button disabled className="w-full py-3 rounded-xl font-bold flex items-center justify-center gap-2 bg-gray-50 text-gray-400 cursor-default border border-gray-100">
+                      <button disabled className="w-full py-3 rounded-xl font-bold flex items-center justify-center gap-2 bg-gray-50 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-default border border-gray-100 dark:border-gray-600">
                         <CheckCircle size={18} /> Selesai
                       </button>
                   )}

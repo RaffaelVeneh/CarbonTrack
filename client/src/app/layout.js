@@ -6,6 +6,8 @@ import Sidebar from "@/components/Sidebar";     // <--- 1. Import Sidebar
 import { usePathname } from "next/navigation";  // <--- 2. Import usePathname
 import { BadgeProvider } from "@/contexts/BadgeContext"; // <--- 3. Import BadgeProvider
 import { SessionProvider } from "next-auth/react"; // <--- 4. Import SessionProvider
+import { ThemeProvider } from "@/contexts/ThemeContext"; // <--- 5. Import ThemeProvider
+import Script from "next/script";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -28,11 +30,31 @@ export default function RootLayout({ children }) {
   const disableSidebar = ["/", "/login", "/register"];
 
   return (
-    <html lang="en">
-      <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
+    <html lang="en" suppressHydrationWarning>
+      <body className={`${geistSans.variable} ${geistMono.variable} antialiased`} suppressHydrationWarning>
+        <Script
+          id="theme-script"
+          strategy="beforeInteractive"
+          dangerouslySetInnerHTML={{
+            __html: `
+              (function() {
+                try {
+                  document.documentElement.classList.remove('dark');
+                  const theme = localStorage.getItem('carbontrack_theme');
+                  if (theme === 'dark') {
+                    document.documentElement.classList.add('dark');
+                  }
+                } catch (e) {
+                  document.documentElement.classList.remove('dark');
+                }
+              })();
+            `
+          }}
+        />
         <SessionProvider>
-          <BadgeProvider>
-            <div className="flex min-h-screen bg-gray-50">
+          <ThemeProvider>
+            <BadgeProvider>
+              <div className="flex min-h-screen bg-gradient-to-br from-green-50 to-blue-50 dark:from-gray-900 dark:to-gray-800">
               
               {/* Tampilkan Sidebar KECUALI di halaman Login/Register */}
               {!disableSidebar.includes(pathname) && <Sidebar />}
@@ -44,8 +66,9 @@ export default function RootLayout({ children }) {
                 {children}
               </main>
               
-            </div>
-          </BadgeProvider>
+              </div>
+            </BadgeProvider>
+          </ThemeProvider>
         </SessionProvider>
       </body>
     </html>

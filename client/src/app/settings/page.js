@@ -2,9 +2,11 @@
 
 import { useState, useEffect } from 'react';
 import Sidebar from '@/components/Sidebar';
-import { Save, User, Mail, Lock, Shield, Calendar, Award, Zap, Flame, Clock, Eye, EyeOff, AlertCircle, CheckCircle2, Info } from 'lucide-react';
+import { Save, User, Mail, Lock, Shield, Calendar, Award, Zap, Flame, Clock, Eye, EyeOff, AlertCircle, CheckCircle2, Info, Sun, Moon } from 'lucide-react';
+import { useTheme } from '@/contexts/ThemeContext';
 
 export default function SettingsPage() {
+  const { theme, toggleTheme } = useTheme();
   const [accountInfo, setAccountInfo] = useState(null);
   const [formData, setFormData] = useState({ username: '' });
   const [passwordData, setPasswordData] = useState({
@@ -171,17 +173,17 @@ export default function SettingsPage() {
 
   if (initialLoading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 via-emerald-50/10 to-blue-50/20 flex">
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 via-emerald-50/10 to-blue-50/20 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 flex">
         <Sidebar />
         <main className="flex-1 ml-64 p-8">
           <div className="animate-pulse space-y-6">
-            <div className="h-10 bg-gray-200 rounded-xl w-64"></div>
+            <div className="h-10 bg-gray-200 dark:bg-gray-700 rounded-xl w-64"></div>
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               <div className="lg:col-span-2 space-y-4">
-                <div className="bg-gray-200 rounded-2xl h-64"></div>
-                <div className="bg-gray-200 rounded-2xl h-48"></div>
+                <div className="bg-gray-200 dark:bg-gray-700 rounded-2xl h-64"></div>
+                <div className="bg-gray-200 dark:bg-gray-700 rounded-2xl h-48"></div>
               </div>
-              <div className="bg-gray-200 rounded-2xl h-96"></div>
+              <div className="bg-gray-200 dark:bg-gray-700 rounded-2xl h-96"></div>
             </div>
           </div>
         </main>
@@ -200,7 +202,7 @@ export default function SettingsPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-emerald-50/10 to-blue-50/20 flex font-sans">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-emerald-50/10 to-blue-50/20 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 flex font-sans">
       <Sidebar />
       <main className="flex-1 ml-64 p-8">
         
@@ -209,15 +211,15 @@ export default function SettingsPage() {
           <h1 className="text-4xl font-extrabold bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent mb-2">
             Pengaturan Akun
           </h1>
-          <p className="text-gray-600">Kelola profil dan preferensi akun kamu</p>
+          <p className="text-gray-600 dark:text-gray-300">Kelola profil dan preferensi akun kamu</p>
         </div>
 
         {/* Global Message */}
         {message.text && (
           <div className={`mb-6 p-4 rounded-xl border-2 flex items-start gap-3 ${
             message.type === 'success' 
-              ? 'bg-green-50 border-green-200 text-green-700' 
-              : 'bg-red-50 border-red-200 text-red-700'
+              ? 'bg-green-50 dark:bg-green-900/30 border-green-200 dark:border-green-700 text-green-700 dark:text-green-300' 
+              : 'bg-red-50 dark:bg-red-900/30 border-red-200 dark:border-red-700 text-red-700 dark:text-red-300'
           }`}>
             {message.type === 'success' ? <CheckCircle2 size={20} className="flex-shrink-0 mt-0.5"/> : <AlertCircle size={20} className="flex-shrink-0 mt-0.5"/>}
             <span className="font-medium">{message.text}</span>
@@ -230,7 +232,7 @@ export default function SettingsPage() {
           <div className="lg:col-span-2 space-y-6">
             
             {/* Profile Settings Card */}
-            <div className="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden">
+            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-100 dark:border-gray-700 overflow-hidden">
               <div className="bg-gradient-to-r from-emerald-500 to-teal-500 p-6">
                 <h2 className="text-2xl font-bold text-white flex items-center gap-2">
                   <User size={24}/>
@@ -242,9 +244,9 @@ export default function SettingsPage() {
                 
                 {/* Username Field */}
                 <div>
-                  <label className="block text-sm font-bold text-gray-700 mb-2">Username</label>
+                  <label className="block text-sm font-bold text-gray-700 dark:text-gray-200 mb-2">Username</label>
                   <div className="relative">
-                    <User className="absolute left-4 top-3.5 text-gray-400" size={20}/>
+                    <User className="absolute left-4 top-3.5 text-gray-400 dark:text-gray-500" size={20}/>
                     <input 
                       type="text" 
                       value={formData.username}
@@ -252,8 +254,8 @@ export default function SettingsPage() {
                       disabled={!accountInfo.canChangeUsername || loading}
                       className={`w-full pl-12 pr-4 py-3 border-2 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none transition ${
                         !accountInfo.canChangeUsername 
-                          ? 'bg-gray-100 border-gray-200 cursor-not-allowed text-gray-500' 
-                          : 'bg-white border-gray-200 hover:border-emerald-300'
+                          ? 'bg-gray-100 dark:bg-gray-700 border-gray-200 dark:border-gray-600 cursor-not-allowed text-gray-500 dark:text-gray-400' 
+                          : 'bg-white dark:bg-gray-700 border-gray-200 dark:border-gray-600 hover:border-emerald-300 dark:hover:border-emerald-600 text-gray-900 dark:text-gray-100'
                       }`}
                       minLength={3}
                       maxLength={20}
@@ -271,14 +273,14 @@ export default function SettingsPage() {
 
                 {/* Email Field (Readonly) */}
                 <div>
-                  <label className="block text-sm font-bold text-gray-700 mb-2">Email Address</label>
+                  <label className="block text-sm font-bold text-gray-700 dark:text-gray-200 mb-2">Email Address</label>
                   <div className="relative">
-                    <Mail className="absolute left-4 top-3.5 text-gray-400" size={20}/>
+                    <Mail className="absolute left-4 top-3.5 text-gray-400 dark:text-gray-500" size={20}/>
                     <input 
                       type="email" 
                       value={accountInfo.email}
                       disabled
-                      className="w-full pl-12 pr-4 py-3 bg-gray-100 border-2 border-gray-200 rounded-xl cursor-not-allowed text-gray-500"
+                      className="w-full pl-12 pr-4 py-3 bg-gray-100 dark:bg-gray-700 border-2 border-gray-200 dark:border-gray-600 rounded-xl cursor-not-allowed text-gray-500 dark:text-gray-400"
                     />
                     {accountInfo.email_verified && (
                       <div className="absolute right-4 top-3.5">
@@ -304,8 +306,8 @@ export default function SettingsPage() {
             </div>
 
             {/* Privacy Settings Card */}
-            <div className="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden">
-              <div className="bg-gradient-to-r from-purple-500 to-pink-500 p-6">
+            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-100 dark:border-gray-700 overflow-hidden">
+              <div className="bg-gradient-to-r from-purple-500 to-indigo-500 p-6">
                 <h2 className="text-2xl font-bold text-white flex items-center gap-2">
                   <Shield size={24}/>
                   Privasi & Keamanan
@@ -315,12 +317,12 @@ export default function SettingsPage() {
               <div className="p-6 space-y-4">
                 
                 {/* Leaderboard Visibility Toggle */}
-                <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl border border-gray-200">
+                <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700 rounded-xl border border-gray-200 dark:border-gray-600">
                   <div className="flex items-start gap-3">
-                    {showInLeaderboard ? <Eye size={20} className="text-purple-600 mt-1"/> : <EyeOff size={20} className="text-gray-400 mt-1"/>}
+                    {showInLeaderboard ? <Eye size={20} className="text-purple-600 mt-1"/> : <EyeOff size={20} className="text-gray-400 dark:text-gray-500 mt-1"/>}
                     <div>
-                      <h3 className="font-bold text-gray-800">Tampil di Leaderboard</h3>
-                      <p className="text-sm text-gray-600 mt-0.5">Tampilkan profil kamu di leaderboard publik</p>
+                      <h3 className="font-bold text-gray-800 dark:text-gray-100">Tampil di Leaderboard</h3>
+                      <p className="text-sm text-gray-600 dark:text-gray-300 mt-0.5">Tampilkan profil kamu di leaderboard publik</p>
                     </div>
                   </div>
                   <button
@@ -336,12 +338,37 @@ export default function SettingsPage() {
                   </button>
                 </div>
 
+                {/* Theme Toggle */}
+                <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700 rounded-xl border border-gray-200 dark:border-gray-600">
+                  <div className="flex items-start gap-3">
+                    {theme === 'dark' ? <Moon size={20} className="text-purple-600 mt-1"/> : <Sun size={20} className="text-amber-500 mt-1"/>}
+                    <div>
+                      <h3 className="font-bold text-gray-800 dark:text-gray-100">Mode Gelap</h3>
+                      <p className="text-sm text-gray-600 dark:text-gray-300 mt-0.5">Aktifkan tema gelap untuk kenyamanan mata</p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Current: {theme}</p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => {
+                      console.log('🖱️ Toggle clicked! Current theme:', theme);
+                      toggleTheme();
+                    }}
+                    className={`relative inline-flex h-7 w-14 items-center rounded-full transition ${
+                      theme === 'dark' ? 'bg-purple-600' : 'bg-gray-300'
+                    }`}
+                  >
+                    <span className={`inline-block h-5 w-5 transform rounded-full bg-white transition ${
+                      theme === 'dark' ? 'translate-x-8' : 'translate-x-1'
+                    }`} />
+                  </button>
+                </div>
+
               </div>
             </div>
 
             {/* Change Password Card - Only show for non-Google accounts */}
             {!accountInfo.isGoogleAccount && (
-              <div className="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden">
+              <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-100 dark:border-gray-700 overflow-hidden">
                 <div className="bg-gradient-to-r from-red-500 to-orange-500 p-6">
                   <h2 className="text-2xl font-bold text-white flex items-center gap-2">
                     <Lock size={24}/>
@@ -355,8 +382,8 @@ export default function SettingsPage() {
                   {passwordMessage.text && (
                     <div className={`p-3 rounded-xl border-2 flex items-start gap-2 text-sm ${
                       passwordMessage.type === 'success' 
-                        ? 'bg-green-50 border-green-200 text-green-700' 
-                        : 'bg-red-50 border-red-200 text-red-700'
+                        ? 'bg-green-50 dark:bg-green-900/30 border-green-200 dark:border-green-700 text-green-700 dark:text-green-300' 
+                        : 'bg-red-50 dark:bg-red-900/30 border-red-200 dark:border-red-700 text-red-700 dark:text-red-300'
                     }`}>
                       {passwordMessage.type === 'success' ? <CheckCircle2 size={16} className="flex-shrink-0 mt-0.5"/> : <AlertCircle size={16} className="flex-shrink-0 mt-0.5"/>}
                       <span className="font-medium">{passwordMessage.text}</span>
@@ -365,21 +392,21 @@ export default function SettingsPage() {
 
                   {/* Current Password */}
                   <div>
-                    <label className="block text-sm font-bold text-gray-700 mb-2">Password Lama</label>
+                    <label className="block text-sm font-bold text-gray-700 dark:text-gray-200 mb-2">Password Lama</label>
                     <div className="relative">
-                      <Lock className="absolute left-4 top-3.5 text-gray-400" size={20}/>
+                      <Lock className="absolute left-4 top-3.5 text-gray-400 dark:text-gray-500" size={20}/>
                       <input 
                         type={showPasswords.current ? "text" : "password"}
                         value={passwordData.currentPassword}
                         onChange={(e) => setPasswordData({...passwordData, currentPassword: e.target.value})}
-                        className="w-full pl-12 pr-12 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-red-500 outline-none transition"
+                        className="w-full pl-12 pr-12 py-3 border-2 border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-xl focus:ring-2 focus:ring-red-500 outline-none transition"
                         placeholder="Masukkan password lama"
                         required
                       />
                       <button
                         type="button"
                         onClick={() => setShowPasswords({...showPasswords, current: !showPasswords.current})}
-                        className="absolute right-4 top-3.5 text-gray-400 hover:text-gray-600"
+                        className="absolute right-4 top-3.5 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300"
                       >
                         {showPasswords.current ? <EyeOff size={20}/> : <Eye size={20}/>}
                       </button>
@@ -388,14 +415,14 @@ export default function SettingsPage() {
 
                   {/* New Password */}
                   <div>
-                    <label className="block text-sm font-bold text-gray-700 mb-2">Password Baru</label>
+                    <label className="block text-sm font-bold text-gray-700 dark:text-gray-200 mb-2">Password Baru</label>
                     <div className="relative">
-                      <Lock className="absolute left-4 top-3.5 text-gray-400" size={20}/>
+                      <Lock className="absolute left-4 top-3.5 text-gray-400 dark:text-gray-500" size={20}/>
                       <input 
                         type={showPasswords.new ? "text" : "password"}
                         value={passwordData.newPassword}
                         onChange={(e) => setPasswordData({...passwordData, newPassword: e.target.value})}
-                        className="w-full pl-12 pr-12 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-red-500 outline-none transition"
+                        className="w-full pl-12 pr-12 py-3 border-2 border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-xl focus:ring-2 focus:ring-red-500 outline-none transition"
                         placeholder="Minimal 6 karakter"
                         minLength={6}
                         required
@@ -403,7 +430,7 @@ export default function SettingsPage() {
                       <button
                         type="button"
                         onClick={() => setShowPasswords({...showPasswords, new: !showPasswords.new})}
-                        className="absolute right-4 top-3.5 text-gray-400 hover:text-gray-600"
+                        className="absolute right-4 top-3.5 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300"
                       >
                         {showPasswords.new ? <EyeOff size={20}/> : <Eye size={20}/>}
                       </button>
@@ -412,21 +439,21 @@ export default function SettingsPage() {
 
                   {/* Confirm Password */}
                   <div>
-                    <label className="block text-sm font-bold text-gray-700 mb-2">Konfirmasi Password Baru</label>
+                    <label className="block text-sm font-bold text-gray-700 dark:text-gray-200 mb-2">Konfirmasi Password Baru</label>
                     <div className="relative">
-                      <Lock className="absolute left-4 top-3.5 text-gray-400" size={20}/>
+                      <Lock className="absolute left-4 top-3.5 text-gray-400 dark:text-gray-500" size={20}/>
                       <input 
                         type={showPasswords.confirm ? "text" : "password"}
                         value={passwordData.confirmPassword}
                         onChange={(e) => setPasswordData({...passwordData, confirmPassword: e.target.value})}
-                        className="w-full pl-12 pr-12 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-red-500 outline-none transition"
+                        className="w-full pl-12 pr-12 py-3 border-2 border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-xl focus:ring-2 focus:ring-red-500 outline-none transition"
                         placeholder="Ulangi password baru"
                         required
                       />
                       <button
                         type="button"
                         onClick={() => setShowPasswords({...showPasswords, confirm: !showPasswords.confirm})}
-                        className="absolute right-4 top-3.5 text-gray-400 hover:text-gray-600"
+                        className="absolute right-4 top-3.5 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300"
                       >
                         {showPasswords.confirm ? <EyeOff size={20}/> : <Eye size={20}/>}
                       </button>
@@ -471,7 +498,7 @@ export default function SettingsPage() {
           <div className="lg:col-span-1 space-y-6">
             
             {/* Account Overview Card */}
-            <div className="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden">
+            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-100 dark:border-gray-700 overflow-hidden">
               <div className="bg-gradient-to-br from-blue-500 to-indigo-600 p-6">
                 <h2 className="text-xl font-bold text-white flex items-center gap-2">
                   <Award size={22}/>
@@ -483,51 +510,51 @@ export default function SettingsPage() {
                 
                 {/* Level */}
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2 text-gray-700">
-                    <div className="p-2 bg-blue-100 rounded-lg">
-                      <Award size={18} className="text-blue-600"/>
+                  <div className="flex items-center gap-2 text-gray-700 dark:text-gray-300">
+                    <div className="p-2 bg-blue-100 dark:bg-blue-900/40 rounded-lg">
+                      <Award size={18} className="text-blue-600 dark:text-blue-400"/>
                     </div>
                     <span className="font-semibold">Level</span>
                   </div>
-                  <span className="text-2xl font-black text-blue-600">{accountInfo.current_level}</span>
+                  <span className="text-2xl font-black text-blue-600 dark:text-blue-400">{accountInfo.current_level}</span>
                 </div>
 
                 {/* Total XP */}
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2 text-gray-700">
-                    <div className="p-2 bg-purple-100 rounded-lg">
-                      <Zap size={18} className="text-purple-600"/>
+                  <div className="flex items-center gap-2 text-gray-700 dark:text-gray-300">
+                    <div className="p-2 bg-purple-100 dark:bg-purple-900/40 rounded-lg">
+                      <Zap size={18} className="text-purple-600 dark:text-purple-400"/>
                     </div>
                     <span className="font-semibold">Total XP</span>
                   </div>
-                  <span className="text-2xl font-black text-purple-600">{accountInfo.total_xp.toLocaleString()}</span>
+                  <span className="text-2xl font-black text-purple-600 dark:text-purple-400">{accountInfo.total_xp.toLocaleString()}</span>
                 </div>
 
                 {/* Current Streak */}
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2 text-gray-700">
-                    <div className="p-2 bg-orange-100 rounded-lg">
-                      <Flame size={18} className="text-orange-600"/>
+                  <div className="flex items-center gap-2 text-gray-700 dark:text-gray-300">
+                    <div className="p-2 bg-orange-100 dark:bg-orange-900/40 rounded-lg">
+                      <Flame size={18} className="text-orange-600 dark:text-orange-400"/>
                     </div>
                     <span className="font-semibold">Streak Saat Ini</span>
                   </div>
-                  <span className="text-2xl font-black text-orange-600">{accountInfo.current_streak}</span>
+                  <span className="text-2xl font-black text-orange-600 dark:text-orange-400">{accountInfo.current_streak}</span>
                 </div>
 
-                <hr className="border-gray-200"/>
+                <hr className="border-gray-200 dark:border-gray-700"/>
 
                 {/* Member Since */}
                 <div>
-                  <div className="flex items-center gap-2 text-gray-600 mb-2">
+                  <div className="flex items-center gap-2 text-gray-600 dark:text-gray-400 mb-2">
                     <Calendar size={16}/>
                     <span className="text-sm font-semibold">Bergabung Sejak</span>
                   </div>
-                  <p className="text-gray-800 font-bold pl-6">{formatDate(accountInfo.created_at)}</p>
+                  <p className="text-gray-800 dark:text-gray-200 font-bold pl-6">{formatDate(accountInfo.created_at)}</p>
                 </div>
 
                 {/* Account Type */}
                 <div>
-                  <div className="flex items-center gap-2 text-gray-600 mb-2">
+                  <div className="flex items-center gap-2 text-gray-600 dark:text-gray-400 mb-2">
                     <Shield size={16}/>
                     <span className="text-sm font-semibold">Tipe Akun</span>
                   </div>
@@ -540,10 +567,10 @@ export default function SettingsPage() {
                           <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
                           <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
                         </svg>
-                        <span className="font-bold text-gray-800">Google Account</span>
+                        <span className="font-bold text-gray-800 dark:text-gray-200">Google Account</span>
                       </div>
                     ) : (
-                      <span className="font-bold text-gray-800">Email Account</span>
+                      <span className="font-bold text-gray-800 dark:text-gray-200">Email Account</span>
                     )}
                   </div>
                 </div>

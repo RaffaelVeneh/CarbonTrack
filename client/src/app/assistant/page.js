@@ -37,7 +37,7 @@ function MessageContent({ text, isBot }) {
       <button
         key={`link-${startIndex}`}
         onClick={() => router.push(url)}
-        className="inline-flex items-center gap-1 px-2 py-0.5 bg-white/20 hover:bg-white/30 rounded-md font-bold underline transition-all hover:scale-105 border border-white/30"
+        className="inline-flex items-center gap-1 px-2 py-0.5 bg-white/20 hover:bg-white/30 dark:bg-white/10 dark:hover:bg-white/20 rounded-md font-bold underline transition-all hover:scale-105 border border-white/30 dark:border-white/20"
       >
         {linkText}
         <ExternalLink size={14} />
@@ -193,19 +193,19 @@ export default function AssistantPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-white to-teal-50 flex">
+    <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-white to-teal-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 flex">
       <Sidebar />
       <main className="flex-1 p-0 ml-64 flex flex-col h-screen">
         
         {/* Header Chat - Lebih Compact */}
-        <div className="bg-white px-6 py-4 shadow-sm border-b border-gray-100 flex items-center justify-between">
+        <div className="bg-white dark:bg-gray-800 px-6 py-4 shadow-sm border-b border-gray-100 dark:border-gray-700 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="p-2 bg-gradient-to-br from-emerald-400 to-teal-500 rounded-xl text-white shadow-md">
               <Bot size={24} />
             </div>
             <div>
-              <h1 className="text-lg font-bold text-gray-800">EcoBot Assistant</h1>
-              <p className="text-xs text-green-600 font-medium flex items-center gap-1.5">
+              <h1 className="text-lg font-bold text-gray-800 dark:text-gray-100">EcoBot Assistant</h1>
+              <p className="text-xs text-green-600 dark:text-green-400 font-medium flex items-center gap-1.5">
                 <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></span> 
                 Siap membantu
               </p>
@@ -224,19 +224,19 @@ export default function AssistantPage() {
         </div>
 
         {/* Area Chat Bubble - Auto-hide Scrollbar */}
-        <div className="flex-1 overflow-y-auto px-4 py-2 space-y-3">
+        <div className="flex-1 overflow-y-auto px-4 py-2 space-y-3 dark:bg-gray-900">
           
           {/* Quick Suggestions - Only show if first message */}
           {messages.length === 1 && (
             <div className="max-w-2xl mx-auto mb-4">
-              <p className="text-sm font-semibold text-gray-600 mb-3 text-center">💬 Pertanyaan Cepat:</p>
+              <p className="text-sm font-semibold text-gray-600 dark:text-gray-300 mb-3 text-center">💬 Pertanyaan Cepat:</p>
               <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
                 {QUICK_SUGGESTIONS.map((suggestion, idx) => (
                   <button
                     key={idx}
                     onClick={() => handleQuickSuggestion(suggestion.query)}
                     disabled={loading}
-                    className="flex items-center gap-2 px-3 py-2 bg-white hover:bg-emerald-50 border-2 border-gray-200 hover:border-emerald-300 rounded-xl text-sm font-medium text-gray-700 transition-all hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="flex items-center gap-2 px-3 py-2 bg-white dark:bg-gray-800 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 border-2 border-gray-200 dark:border-gray-700 hover:border-emerald-300 dark:hover:border-emerald-600 rounded-xl text-sm font-medium text-gray-700 dark:text-gray-300 transition-all hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <span className="text-lg">{suggestion.icon}</span>
                     <span className="text-left">{suggestion.text}</span>
@@ -253,7 +253,7 @@ export default function AssistantPage() {
                 {/* Avatar */}
                 <div className={`w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 shadow-sm ${
                   msg.role === 'user' 
-                    ? 'bg-gradient-to-br from-gray-100 to-gray-200 text-gray-700' 
+                    ? 'bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-700 dark:to-gray-600 text-gray-700 dark:text-gray-200' 
                     : 'bg-gradient-to-br from-emerald-500 to-teal-600 text-white'
                 }`}>
                   {msg.role === 'user' ? <User size={18} /> : <Bot size={18} />}
@@ -262,7 +262,7 @@ export default function AssistantPage() {
                 {/* Message Bubble */}
                 <div className={`px-4 py-3 rounded-2xl text-base leading-relaxed shadow-md whitespace-pre-wrap ${
                   msg.role === 'user' 
-                    ? 'bg-white text-gray-800 rounded-tr-sm border border-gray-100' 
+                    ? 'bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 rounded-tr-sm border border-gray-100 dark:border-gray-700' 
                     : 'bg-gradient-to-br from-emerald-600 to-teal-600 text-white rounded-tl-sm'
                 }`}>
                   <MessageContent text={msg.text} isBot={msg.role === 'bot'} />
@@ -274,7 +274,7 @@ export default function AssistantPage() {
           {/* Loading Indicator */}
           {loading && (
             <div className="flex justify-start">
-              <div className="bg-emerald-100 text-emerald-700 px-4 py-2 rounded-full text-xs font-medium animate-pulse shadow-sm">
+              <div className="bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 px-4 py-2 rounded-full text-xs font-medium animate-pulse shadow-sm">
                 💬 EcoBot sedang mengetik...
               </div>
             </div>
@@ -285,7 +285,7 @@ export default function AssistantPage() {
         </div>
 
         {/* Input Area - Auto-resize Textarea */}
-        <div className="px-4 py-3 bg-white/80 backdrop-blur-sm border-t border-gray-100">
+        <div className="px-4 py-3 bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm border-t border-gray-100 dark:border-gray-700">
           <form onSubmit={handleSend} className="flex gap-2 max-w-3xl mx-auto items-end">
             <textarea
               ref={textareaRef}
@@ -294,7 +294,7 @@ export default function AssistantPage() {
               onKeyDown={handleKeyDown}
               placeholder="💬 Tanya tips hemat energi... (Shift+Enter untuk baris baru)"
               rows={1}
-              className="flex-1 px-4 py-3 bg-gray-50 border border-gray-200 rounded-2xl focus:ring-2 focus:ring-emerald-400 focus:border-transparent outline-none transition-all text-base resize-none overflow-y-auto min-h-[48px] max-h-[200px] scrollbar-auto-hide"
+              className="flex-1 px-4 py-3 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-100 border border-gray-200 dark:border-gray-600 rounded-2xl focus:ring-2 focus:ring-emerald-400 focus:border-transparent outline-none transition-all text-base resize-none overflow-y-auto min-h-[48px] max-h-[200px] scrollbar-auto-hide placeholder:text-gray-400 dark:placeholder:text-gray-500"
             />
             <button 
               type="submit" 
@@ -305,9 +305,9 @@ export default function AssistantPage() {
               <Send size={20} />
             </button>
           </form>
-          <p className="text-xs text-gray-500 text-center mt-2">
-            Tekan <kbd className="px-1.5 py-0.5 bg-gray-200 rounded text-xs">Enter</kbd> untuk kirim, 
-            <kbd className="px-1.5 py-0.5 bg-gray-200 rounded text-xs ml-1">Shift+Enter</kbd> untuk baris baru
+          <p className="text-xs text-gray-500 dark:text-gray-400 text-center mt-2">
+            Tekan <kbd className="px-1.5 py-0.5 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded text-xs">Enter</kbd> untuk kirim, 
+            <kbd className="px-1.5 py-0.5 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded text-xs ml-1">Shift+Enter</kbd> untuk baris baru
           </p>
         </div>
 
