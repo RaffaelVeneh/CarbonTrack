@@ -13,11 +13,30 @@ function getSecondsUntilMidnight() {
     return Math.floor((tomorrow - now) / 1000);
 }
 
+// Auto-cleanup: Delete old daily missions (not from today)
+async function cleanupOldDailyMissions() {
+    try {
+        const today = getTodayDate();
+        const [result] = await db.execute(
+            'DELETE FROM daily_missions WHERE assigned_date < ?',
+            [today]
+        );
+        if (result.affectedRows > 0) {
+            console.log(`🧹 [Daily Missions Cleanup] Deleted ${result.affectedRows} old missions before ${today}`);
+        }
+    } catch (error) {
+        console.error('❌ [Daily Missions Cleanup] Error:', error);
+    }
+}
+
 // GET daily missions WITH PROGRESS (from today's logs only)
 const getDailyMissions = async (req, res) => {
     try {
         const { userId } = req.params;
         const today = getTodayDate();
+
+        // Auto-cleanup old missions before fetching
+        await cleanupOldDailyMissions();
 
         console.log(`📅 Fetching daily missions for user ${userId}`);
 

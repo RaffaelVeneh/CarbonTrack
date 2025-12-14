@@ -25,11 +25,30 @@ function getSecondsUntilNextMonday() {
     return Math.floor((nextMonday - now) / 1000);
 }
 
+// Auto-cleanup: Delete old weekly missions (not from this week)
+async function cleanupOldWeeklyMissions() {
+    try {
+        const thisWeekMonday = getThisWeekMonday();
+        const [result] = await db.execute(
+            'DELETE FROM weekly_missions WHERE assigned_week < ?',
+            [thisWeekMonday]
+        );
+        if (result.affectedRows > 0) {
+            console.log(`🧹 [Weekly Missions Cleanup] Deleted ${result.affectedRows} old missions before week ${thisWeekMonday}`);
+        }
+    } catch (error) {
+        console.error('❌ [Weekly Missions Cleanup] Error:', error);
+    }
+}
+
 // GET weekly missions WITH PROGRESS (from this week's logs)
 const getWeeklyMissions = async (req, res) => {
     try {
         const { userId } = req.params;
         const thisWeekMonday = getThisWeekMonday();
+
+        // Auto-cleanup old missions before fetching
+        await cleanupOldWeeklyMissions();
 
         console.log(`📅 Fetching weekly missions for user ${userId} for week starting: ${thisWeekMonday}`);
 
