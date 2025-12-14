@@ -17,22 +17,43 @@ export default function LeaderboardPage() {
   const [hasMore, setHasMore] = useState(true);
   const [totalUsers, setTotalUsers] = useState(0);
   const observerRef = useRef(null);
+  const fetchingRef = useRef(false); // Prevent duplicate fetches
+  const lastPageFetched = useRef(0); // Track last page fetched
   
   const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
   // Fetch leaderboard data
   const fetchLeaderboard = useCallback(async (pageNum, append = false) => {
+    // Prevent duplicate fetches
+    if (fetchingRef.current) {
+      console.log('⚠️ Already fetching, skipping...');
+      return;
+    }
+    
+    // Prevent fetching same page twice
+    if (append && lastPageFetched.current === pageNum) {
+      console.log('⚠️ Page', pageNum, 'already fetched, skipping...');
+      return;
+    }
+    
     try {
+      fetchingRef.current = true;
+      
       if (append) {
         setLoadingMore(true);
       } else {
         setLoading(true);
       }
 
+      console.log('🔄 Fetching page:', pageNum, 'append:', append);
       const res = await fetch(`${API_URL}/users/leaderboard?page=${pageNum}&limit=10`);
       const response = await res.json();
 
-      console.log('Leaderboard Response:', response);
+      console.log('📦 Leaderboard Response (page ' + pageNum + '):', response);
+      
+      if (append) {
+        lastPageFetched.current = pageNum;
+      }
 
       // Handle both old format (array) and new format (object with pagination)
       if (Array.isArray(response)) {
@@ -50,17 +71,51 @@ export default function LeaderboardPage() {
         setTotalUsers(response.length);
       } else if (response.data && Array.isArray(response.data)) {
         // New format - object with data and pagination
+        const totalUsersCount = response.pagination?.totalUsers || response.data.length;
+        setTotalUsers(totalUsersCount);
+        
         if (append) {
+          // Calculate new data first
           setLeaders(prev => {
             const existingIds = new Set(prev.map(p => p.id));
+            const receivedIds = response.data.map(p => p.id);
+            const duplicateIds = receivedIds.filter(id => existingIds.has(id));
             const newPlayers = response.data.filter(p => !existingIds.has(p.id));
-            return [...prev, ...newPlayers];
+            const updatedLeaders = [...prev, ...newPlayers];
+            
+            // Check multiple conditions for hasMore:
+            // 1. Backend must say hasMore is true
+            // 2. We actually got new data (not empty response)
+            // 3. Our count is still less than total
+            const backendHasMore = response.pagination?.hasMore || false;
+            const gotNewData = newPlayers.length > 0;
+            const notReachedTotal = updatedLeaders.length < totalUsersCount;
+            const stillHasMore = backendHasMore && gotNewData && notReachedTotal;
+            
+            console.log('=== Pagination Debug (Page ' + pageNum + ') ===');
+            console.log('Previous count:', prev.length);
+            console.log('Previous IDs:', prev.map(p => p.id));
+            console.log('New data received:', response.data.length);
+            console.log('Received IDs:', receivedIds);
+            console.log('Duplicate IDs:', duplicateIds);
+            console.log('New players (after dedup):', newPlayers.length);
+            console.log('New player IDs:', newPlayers.map(p => p.id));
+            console.log('Updated count:', updatedLeaders.length);
+            console.log('Total users:', totalUsersCount);
+            console.log('Backend hasMore:', backendHasMore);
+            console.log('Got new data:', gotNewData);
+            console.log('Not reached total:', notReachedTotal);
+            console.log('Final hasMore:', stillHasMore);
+            
+            // Set hasMore based on all conditions
+            setHasMore(stillHasMore);
+            
+            return updatedLeaders;
           });
         } else {
           setLeaders(response.data);
+          setHasMore(response.pagination?.hasMore || false);
         }
-        setHasMore(response.pagination?.hasMore || false);
-        setTotalUsers(response.pagination?.totalUsers || response.data.length);
       } else {
         // Error response or empty
         console.error('Unexpected response format:', response);
@@ -74,6 +129,8 @@ export default function LeaderboardPage() {
       console.error('Leaderboard Fetch Error:', err);
       setLoading(false);
       setLoadingMore(false);
+    } finally {
+      fetchingRef.current = false;
     }
   }, [API_URL]);
 

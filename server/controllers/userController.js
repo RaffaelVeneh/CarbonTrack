@@ -7,11 +7,15 @@ exports.getLeaderboard = async (req, res) => {
         const limit = parseInt(req.query.limit) || 10;
         const offset = (page - 1) * limit;
 
-        // Get total count
-        const [countResult] = await db.execute('SELECT COUNT(*) as total FROM users');
+        // Get total count (only users who want to be shown in leaderboard)
+        const [countResult] = await db.execute(
+            'SELECT COUNT(*) as total FROM users WHERE show_in_leaderboard = 1'
+        );
         const totalUsers = countResult[0].total;
 
-        // Get paginated data
+        // Get paginated data (only users who want to be shown in leaderboard)
+        // Use subquery to avoid inconsistent results from GROUP BY with pagination
+        // ORDER BY total_xp DESC, then by id ASC to ensure consistent ordering for users with same XP
         const query = `
             SELECT 
                 u.id, 
@@ -19,14 +23,18 @@ exports.getLeaderboard = async (req, res) => {
                 u.current_level, 
                 u.total_xp, 
                 u.island_health,
-                COALESCE(SUM(dl.carbon_saved), 0) as total_co2_saved
+                COALESCE(
+                    (SELECT SUM(carbon_saved) FROM daily_logs WHERE user_id = u.id), 
+                    0
+                ) as total_co2_saved
             FROM users u
-            LEFT JOIN daily_logs dl ON u.id = dl.user_id
-            GROUP BY u.id, u.username, u.current_level, u.total_xp, u.island_health
-            ORDER BY u.total_xp DESC 
+            WHERE u.show_in_leaderboard = 1
+            ORDER BY u.total_xp DESC, u.id ASC
             LIMIT ${limit} OFFSET ${offset}
         `;
         const [rows] = await db.execute(query);
+        
+        console.log(`[Leaderboard] Page ${page}, Offset ${offset}, Returned ${rows.length} rows (IDs: ${rows.map(r => r.id).join(', ')}), Total ${totalUsers}`);
 
         res.json({
             data: rows,
