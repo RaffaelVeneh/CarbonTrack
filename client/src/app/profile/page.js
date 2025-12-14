@@ -123,9 +123,6 @@ export default function ProfilePage() {
                     {user.username}
                   </h1>
                   <div className="flex flex-wrap gap-2">
-                    <span className="flex items-center gap-1.5 bg-gray-100 dark:bg-gray-700 px-3 py-1.5 rounded-lg text-sm text-gray-600 dark:text-gray-300 font-medium">
-                      <Mail size={14}/> {user.email}
-                    </span>
                     <span className="flex items-center gap-1.5 bg-gradient-to-r from-emerald-100 to-teal-100 dark:from-emerald-900/30 dark:to-teal-900/30 px-3 py-1.5 rounded-lg text-sm font-semibold border border-emerald-200 dark:border-emerald-700">
                       <ShieldCheck size={14} className="text-emerald-600 dark:text-emerald-400"/>
                       <span className="text-emerald-700 dark:text-emerald-400">{user.total_xp || 0} Total XP</span>
