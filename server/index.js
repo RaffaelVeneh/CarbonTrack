@@ -15,6 +15,7 @@ const aiRoutes = require('./routes/aiRoutes');     // <-- TAMBAHAN BARU (Untuk A
 const badgeRoutes = require('./routes/badgeRoutes'); // <-- TAMBAHAN BARU (Untuk Badge System)
 const dailyMissionRoutes = require('./routes/dailyMissionRoutes'); // <-- TAMBAHAN BARU (Untuk Daily Missions)
 const weeklyMissionRoutes = require('./routes/weeklyMissionRoutes'); // <-- TAMBAHAN BARU (Untuk Weekly Missions)
+const adminRoutes = require('./routes/adminRoutes'); // <-- TAMBAHAN BARU (Untuk Admin Panel)
 
 dotenv.config();
 const app = express();
@@ -36,6 +37,9 @@ app.use('/api/badges', badgeRoutes); // <-- TAMBAHAN BARU (Akses: /api/badges)
 app.use('/api/missions/daily', dailyMissionRoutes); // <-- Harus di atas /api/missions
 app.use('/api/missions/weekly', weeklyMissionRoutes); // <-- Harus di atas /api/missions
 app.use('/api/missions', missionRoutes); // <-- Wildcard route terakhir
+
+// Admin routes (protected with JWT)
+app.use('/api/admin', adminRoutes); // <-- Admin panel endpoints
 
 // Test Route
 app.get('/', (req, res) => {

@@ -3,16 +3,21 @@
 import { useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
+import { useTheme } from '@/contexts/ThemeContext';
 
 export default function GoogleCallbackPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
+  const { saveUserAuth } = useTheme();
 
   useEffect(() => {
     if (status === 'authenticated' && session?.backendToken) {
-      // Save to localStorage
-      localStorage.setItem('token', session.backendToken);
-      localStorage.setItem('user', JSON.stringify(session.userData));
+      // Save to localStorage dengan 2 tokens
+      saveUserAuth(
+        session.userData,
+        session.backendToken.accessToken,
+        session.backendToken.refreshToken
+      );
       
       // Redirect to dashboard
       router.push('/dashboard');
@@ -20,7 +25,7 @@ export default function GoogleCallbackPage() {
       // Failed authentication
       router.push('/login?error=google_auth_failed');
     }
-  }, [status, session, router]);
+  }, [status, session, router, saveUserAuth]);
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50">

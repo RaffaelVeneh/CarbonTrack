@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, useState, useEffect } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 
 const ThemeContext = createContext();
 
@@ -16,24 +16,24 @@ export function ThemeProvider({ children }) {
 
   const [theme, setTheme] = useState(getInitialTheme);
   const [mounted, setMounted] = useState(false);
+  const [user, setUser] = useState(null);
+  const [isTokenExpired, setIsTokenExpired] = useState(false);
 
-  // Apply theme on mount and when theme changes
+  // Load user data dan tokens dari localStorage
   useEffect(() => {
     setMounted(true);
     
-    // Always sync with actual localStorage value
+    // Load theme
     const savedTheme = localStorage.getItem('carbontrack_theme') || 'light';
-    
     if (savedTheme !== theme) {
       setTheme(savedTheme);
     }
-    
-    // Apply theme to document
     if (savedTheme === 'dark') {
       document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
     }
+
+    // Load user auth
+    loadUserFromStorage();
   }, []);
 
   // Update document when theme state changes
@@ -51,8 +51,6 @@ export function ThemeProvider({ children }) {
     const newTheme = theme === 'light' ? 'dark' : 'light';
     setTheme(newTheme);
     localStorage.setItem('carbontrack_theme', newTheme);
-    
-    // Force immediate DOM update
     if (newTheme === 'dark') {
       document.documentElement.classList.add('dark');
     } else {
@@ -70,8 +68,151 @@ export function ThemeProvider({ children }) {
     localStorage.setItem('carbontrack_theme', 'light');
   };
 
+  // ===== JWT TOKEN MANAGEMENT =====
+
+  const saveUserAuth = useCallback((userData, accessToken, refreshToken) => {
+    const authData = {
+      user: userData,
+      accessToken,
+      refreshToken,
+      loginTime: new Date().toISOString()
+    };
+    localStorage.setItem('userAuth', JSON.stringify(authData));
+    setUser(userData);
+    setIsTokenExpired(false);
+  }, []);
+
+  const loadUserFromStorage = useCallback(() => {
+    try {
+      const authData = localStorage.getItem('userAuth');
+      if (authData) {
+        const parsed = JSON.parse(authData);
+        setUser(parsed.user);
+        // Check if access token expired (optional)
+        checkTokenStatus(parsed.accessToken);
+      }
+    } catch (error) {
+      console.error('Error loading user from storage:', error);
+      clearUserAuth();
+    }
+  }, []);
+
+  const checkTokenStatus = useCallback((token) => {
+    try {
+      // Decode token tanpa verify
+      const parts = token.split('.');
+      if (parts.length !== 3) return;
+
+      const decoded = JSON.parse(atob(parts[1]));
+      const expiresAt = decoded.exp * 1000; // Convert to milliseconds
+      const now = Date.now();
+      const timeUntilExpiry = expiresAt - now;
+
+      // Consider expired if less than 2 minutes left
+      if (timeUntilExpiry < 2 * 60 * 1000) {
+        setIsTokenExpired(true);
+      }
+    } catch (error) {
+      console.error('Error checking token status:', error);
+    }
+  }, []);
+
+  const refreshAccessToken = useCallback(async () => {
+    try {
+      const authData = localStorage.getItem('userAuth');
+      if (!authData) {
+        clearUserAuth();
+        return false;
+      }
+
+      const { refreshToken } = JSON.parse(authData);
+      const API_URL = process.env.NEXT_PUBLIC_API_URL;
+
+      const response = await fetch(`${API_URL}/auth/refresh-token`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refreshToken })
+      });
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          clearUserAuth();
+          return false;
+        }
+        throw new Error('Failed to refresh token');
+      }
+
+      const data = await response.json();
+      const currentAuthData = JSON.parse(authData);
+      
+      // Update tokens
+      saveUserAuth(currentAuthData.user, data.accessToken, data.refreshToken);
+      setIsTokenExpired(false);
+      return true;
+    } catch (error) {
+      console.error('Error refreshing token:', error);
+      clearUserAuth();
+      return false;
+    }
+  }, [saveUserAuth]);
+
+  const getAccessToken = useCallback(() => {
+    try {
+      const authData = localStorage.getItem('userAuth');
+      if (!authData) return null;
+      const { accessToken } = JSON.parse(authData);
+      return accessToken;
+    } catch (error) {
+      return null;
+    }
+  }, []);
+
+  const clearUserAuth = useCallback(() => {
+    localStorage.removeItem('userAuth');
+    setUser(null);
+    setIsTokenExpired(false);
+  }, []);
+
+  const logout = useCallback(async () => {
+    try {
+      const API_URL = process.env.NEXT_PUBLIC_API_URL;
+      const token = getAccessToken();
+
+      if (token) {
+        // Call logout endpoint (optional)
+        await fetch(`${API_URL}/auth/logout`, {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${token}` }
+        }).catch(err => console.error('Logout API error:', err));
+      }
+    } catch (error) {
+      console.error('Logout error:', error);
+    } finally {
+      clearUserAuth();
+    }
+  }, [getAccessToken, clearUserAuth]);
+
+  const value = {
+    // Theme
+    theme,
+    toggleTheme,
+    setDarkTheme,
+    setLightTheme,
+    mounted,
+    
+    // Auth
+    user,
+    isTokenExpired,
+    saveUserAuth,
+    loadUserFromStorage,
+    refreshAccessToken,
+    getAccessToken,
+    clearUserAuth,
+    logout
+  };
+
   return (
-    <ThemeContext.Provider value={{ theme, toggleTheme, setDarkTheme, setLightTheme, mounted }}>
+    <ThemeContext.Provider value={value}>
       {children}
     </ThemeContext.Provider>
   );

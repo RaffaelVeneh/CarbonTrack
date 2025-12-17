@@ -27,7 +27,10 @@ export default function RootLayout({ children }) {
   const pathname = usePathname();
   
   // Daftar halaman yang TIDAK boleh ada Sidebar (misal Login & Register)
+  // Tambahkan juga prefix /admin untuk admin pages
   const disableSidebar = ["/", "/login", "/register"];
+  const isAdminRoute = pathname?.startsWith('/admin');
+  const shouldDisableSidebar = disableSidebar.includes(pathname) || isAdminRoute;
 
   return (
     <html lang="en" suppressHydrationWarning>
@@ -61,19 +64,19 @@ export default function RootLayout({ children }) {
         <SessionProvider>
           <ThemeProvider>
             <BadgeProvider>
-              <div className="flex min-h-screen bg-gradient-to-br from-green-50 to-blue-50 dark:from-gray-900 dark:to-gray-800">
-              
-              {/* Tampilkan Sidebar KECUALI di halaman Login/Register */}
-              {!disableSidebar.includes(pathname) && <Sidebar />}
-
-              {/* Area Konten Utama */}
-              {/* Tambahkan margin kiri (ml-64) jika Sidebar aktif agar konten tidak tertutup */}
-              {/* Khusus /assistant dan /login tidak pakai padding */}
-              <main className={`flex-1 transition-all duration-300 ${!disableSidebar.includes(pathname) ? "md:ml-0" : ""} ${pathname === '/assistant' || pathname === '/login' ? '' : 'p-8'}`}>
-                {children}
-              </main>
-              
-              </div>
+              {/* Conditional wrapper: untuk not-found dan admin, tidak pakai wrapper biasa */}
+              {shouldDisableSidebar ? (
+                // No wrapper, no sidebar, no padding - full control for page
+                children
+              ) : (
+                // Normal layout dengan sidebar dan padding
+                <div className="flex min-h-screen bg-gradient-to-br from-green-50 to-blue-50 dark:from-gray-900 dark:to-gray-800">
+                  <Sidebar />
+                  <main className={`flex-1 transition-all duration-300 md:ml-0 ${pathname === '/assistant' ? '' : 'p-8'}`}>
+                    {children}
+                  </main>
+                </div>
+              )}
             </BadgeProvider>
           </ThemeProvider>
         </SessionProvider>

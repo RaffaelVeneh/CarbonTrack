@@ -5,6 +5,34 @@ const crypto = require('crypto');
 const emailService = require('../services/emailService');
 const db = require('../config/db');
 
+// Helper function untuk generate 2 JWT tokens
+const generateTokens = (userId, userEmail, username, plantHealth) => {
+    // Access Token (30 menit) - untuk penggunaan umum
+    const accessToken = jwt.sign(
+        {
+            type: 'access',
+            id: userId,
+            email: userEmail,
+            username: username,
+            plant_health: plantHealth
+        },
+        process.env.JWT_SECRET,
+        { expiresIn: '30m' }
+    );
+
+    // Refresh Token (7 hari) - hanya untuk refresh access token
+    const refreshToken = jwt.sign(
+        {
+            type: 'refresh',
+            id: userId
+        },
+        process.env.JWT_SECRET,
+        { expiresIn: '7d' }
+    );
+
+    return { accessToken, refreshToken };
+};
+
 // GOOGLE AUTH (Register/Login dengan Google)
 exports.googleAuth = async (req, res) => {
     try {
@@ -64,14 +92,18 @@ exports.googleAuth = async (req, res) => {
             user = await User.findByEmail(email);
         }
 
-        // Generate JWT token
-        const token = jwt.sign({ id: user.id }, process.env.JWT_SECRET, {
-            expiresIn: '7d'
-        });
+        // Generate 2 JWT tokens
+        const { accessToken, refreshToken } = generateTokens(
+            user.id,
+            user.email,
+            user.username,
+            user.island_health
+        );
 
         res.json({
             message: 'Login dengan Google berhasil',
-            token,
+            accessToken,
+            refreshToken,
             user: {
                 id: user.id,
                 username: user.username,
@@ -229,14 +261,18 @@ exports.login = async (req, res) => {
             return res.status(400).json({ message: 'Email atau password salah' });
         }
 
-        // 4. Buat Token (JWT)
-        const token = jwt.sign({ id: user.id }, process.env.JWT_SECRET, {
-            expiresIn: '7d' // Token berlaku 7 hari
-        });
+        // 4. Generate 2 JWT tokens (access + refresh)
+        const { accessToken, refreshToken } = generateTokens(
+            user.id,
+            user.email,
+            user.username,
+            user.island_health
+        );
 
         res.json({
             message: 'Login berhasil',
-            token,
+            accessToken,
+            refreshToken,
             user: {
                 id: user.id,
                 username: user.username,
@@ -284,15 +320,19 @@ exports.verifyEmail = async (req, res) => {
             [user.id]
         );
 
-        // Generate JWT token for auto-login
-        const token = jwt.sign({ id: user.id }, process.env.JWT_SECRET, {
-            expiresIn: '7d' // Token berlaku 7 hari
-        });
+        // Generate 2 JWT tokens for auto-login
+        const { accessToken, refreshToken } = generateTokens(
+            user.id,
+            user.email,
+            user.username,
+            user.island_health
+        );
 
-        // Return user data + token (auto login)
+        // Return user data + tokens (auto login)
         res.json({
             message: 'Email berhasil diverifikasi! Selamat datang di CarbonTracker! 🎉',
-            token,
+            accessToken,
+            refreshToken,
             user: {
                 id: user.id,
                 username: user.username,
@@ -427,6 +467,65 @@ exports.resendVerification = async (req, res) => {
             console.error('Email sending failed:', emailError);
             res.status(500).json({ message: 'Gagal mengirim kode. Silakan coba lagi.' });
         }
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Server Error' });
+    }
+};
+
+// REFRESH ACCESS TOKEN
+exports.refreshToken = async (req, res) => {
+    try {
+        const { refreshToken } = req.body;
+
+        if (!refreshToken) {
+            return res.status(401).json({ message: 'Refresh token diperlukan!' });
+        }
+
+        // Verify refresh token
+        try {
+            const decoded = jwt.verify(refreshToken, process.env.JWT_SECRET);
+
+            // Check if it's a refresh token
+            if (decoded.type !== 'refresh') {
+                return res.status(401).json({ message: 'Token tidak valid!' });
+            }
+
+            // Get user data
+            const user = await User.findById(decoded.id);
+            if (!user) {
+                return res.status(404).json({ message: 'User tidak ditemukan!' });
+            }
+
+            // Generate new access token
+            const { accessToken, refreshToken: newRefreshToken } = generateTokens(
+                user.id,
+                user.email,
+                user.username,
+                user.island_health
+            );
+
+            res.json({
+                message: 'Token refreshed successfully',
+                accessToken,
+                refreshToken: newRefreshToken
+            });
+        } catch (tokenError) {
+            console.error('Token verification error:', tokenError);
+            return res.status(401).json({ message: 'Refresh token tidak valid atau sudah kadaluarsa!' });
+        }
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Server Error' });
+    }
+};
+
+// LOGOUT (optional - untuk tracking, karena JWT stateless)
+exports.logout = async (req, res) => {
+    try {
+        // JWT adalah stateless, jadi logout di client cukup dengan delete token
+        // Tapi bisa juga simpan token di blacklist untuk additional security nanti
+        res.json({ message: 'Logout berhasil!' });
     } catch (error) {
         console.error(error);
         res.status(500).json({ message: 'Server Error' });

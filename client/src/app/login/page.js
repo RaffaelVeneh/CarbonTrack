@@ -18,21 +18,22 @@ function AuthContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [isFlipped, setIsFlipped] = useState(false);
+  const { saveUserAuth } = require('@/contexts/ThemeContext').useTheme?.() || {};
 
   // Check if user is already logged in
   useEffect(() => {
-    const userData = localStorage.getItem('user');
-    if (userData) {
+    const userAuth = localStorage.getItem('userAuth');
+    if (userAuth) {
       try {
-        const user = JSON.parse(userData);
-        if (user && user.id) {
+        const authData = JSON.parse(userAuth);
+        if (authData && authData.user && authData.user.id) {
           console.log('User already logged in, redirecting to dashboard...');
           router.push('/dashboard');
           return;
         }
       } catch (error) {
-        console.error('Invalid user data:', error);
-        localStorage.removeItem('user');
+        console.error('Invalid user auth data:', error);
+        localStorage.removeItem('userAuth');
       }
     }
 
@@ -99,10 +100,11 @@ function AuthContent() {
 }
 
 // ==========================================
-// 1. KOMPONEN LOGIN (Tetap Sama)
+// 1. KOMPONEN LOGIN (Updated dengan 2 Tokens)
 // ==========================================
 function LoginForm({ onSwitch }) {
   const router = useRouter();
+  const { saveUserAuth } = require('@/contexts/ThemeContext').useTheme?.() || {};
   const [formData, setFormData] = useState({ email: '', password: '' });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -112,15 +114,21 @@ function LoginForm({ onSwitch }) {
   const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
   const handleSubmit = async (e) => {
-    e.preventDefault(); setError(''); setLoading(true);
+    e.preventDefault(); 
+    setError(''); 
+    setLoading(true);
     try {
       const res = await fetch(`${API_URL}/auth/login`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(formData),
+        method: 'POST', 
+        headers: { 'Content-Type': 'application/json' }, 
+        body: JSON.stringify(formData),
       });
       const data = await res.json();
       if (res.ok) {
-        localStorage.setItem('token', data.token);
-        localStorage.setItem('user', JSON.stringify(data.user));
+        // Save dengan 2 tokens (access + refresh)
+        if (saveUserAuth) {
+          saveUserAuth(data.user, data.accessToken, data.refreshToken);
+        }
         router.push('/dashboard');
       } else {
         // If email not verified, redirect to register page for verification
@@ -133,7 +141,11 @@ function LoginForm({ onSwitch }) {
           setError(data.message || 'Email atau password salah');
         }
       }
-    } catch (err) { setError('Gagal menghubungi server'); } finally { setLoading(false); }
+    } catch (err) { 
+      setError('Gagal menghubungi server'); 
+    } finally { 
+      setLoading(false); 
+    }
   };
 
   return (
@@ -271,11 +283,9 @@ function LoginForm({ onSwitch }) {
   );
 }
 
-// ==========================================
-// 2. KOMPONEN REGISTER (dengan Verifikasi Kode)
-// ==========================================
 function RegisterForm({ onSwitch }) {
   const router = useRouter();
+  const { saveUserAuth } = require('@/contexts/ThemeContext').useTheme?.() || {};
   const [formData, setFormData] = useState({ username: '', email: '', password: '' });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -385,7 +395,9 @@ function RegisterForm({ onSwitch }) {
   };
 
   const handleVerify = async (e) => {
-    e.preventDefault(); setError(''); setLoading(true);
+    e.preventDefault(); 
+    setError(''); 
+    setLoading(true);
     try {
       const res = await fetch(`${API_URL}/auth/verify-email`, {
         method: 'POST',
@@ -394,15 +406,20 @@ function RegisterForm({ onSwitch }) {
       });
       const data = await res.json();
       if (res.ok) {
-        // Auto-login: simpan token dan user data
-        localStorage.setItem('token', data.token);
-        localStorage.setItem('user', JSON.stringify(data.user));
+        // Auto-login: simpan 2 tokens dan user data
+        if (saveUserAuth) {
+          saveUserAuth(data.user, data.accessToken, data.refreshToken);
+        }
         // Redirect ke dashboard
         router.push('/dashboard');
       } else {
         setError(data.message || 'Kode verifikasi salah');
       }
-    } catch (err) { setError('Gagal menghubungi server'); } finally { setLoading(false); }
+    } catch (err) { 
+      setError('Gagal menghubungi server'); 
+    } finally { 
+      setLoading(false); 
+    }
   };
 
   const handleResend = async () => {

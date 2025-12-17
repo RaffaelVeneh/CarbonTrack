@@ -18,4 +18,8 @@ router.post('/resend-verification', authController.resendVerification);
 router.post('/forgot-password', authController.forgotPassword);
 router.post('/reset-password', authController.resetPassword);
 
+// Token Management
+router.post('/refresh-token', authController.refreshToken);
+router.post('/logout', authController.logout);
+
 module.exports = router;
