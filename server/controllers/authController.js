@@ -239,11 +239,19 @@ exports.register = async (req, res) => {
 exports.login = async (req, res) => {
     try {
         const { email, password } = req.body;
+        console.log('[Auth][Login] Attempt login for email:', email);
 
         // 1. Cek user ada atau tidak
         const user = await User.findByEmail(email);
         if (!user) {
+            console.warn('[Auth][Login] User not found for email:', email);
             return res.status(400).json({ message: 'Email atau password salah' });
+        }
+
+        // Debug: ensure password_hash exists
+        if (!user.password_hash) {
+            console.error('[Auth][Login] user record missing password_hash for user id:', user.id);
+            return res.status(500).json({ message: 'Server error - user password not set' });
         }
 
         // 2. Cek apakah email sudah terverifikasi
@@ -258,6 +266,7 @@ exports.login = async (req, res) => {
         // 3. Cek password cocok atau tidak
         const isMatch = await bcrypt.compare(password, user.password_hash);
         if (!isMatch) {
+            console.warn('[Auth][Login] Password mismatch for email:', email);
             return res.status(400).json({ message: 'Email atau password salah' });
         }
 
@@ -283,7 +292,7 @@ exports.login = async (req, res) => {
             }
         });
     } catch (error) {
-        console.error(error);
+        console.error('[Auth][Login] Error:', error);
         res.status(500).json({ message: 'Server Error' });
     }
 };
@@ -392,9 +401,12 @@ exports.forgotPassword = async (req, res) => {
 // RESET PASSWORD
 exports.resetPassword = async (req, res) => {
     try {
-        const { token, newPassword } = req.body;
+        // Accept either { token, newPassword } or { token, password } from client
+        const { token } = req.body;
+        const newPassword = req.body.newPassword || req.body.password;
 
         if (!token || !newPassword) {
+            console.warn('[Auth][ResetPassword] Missing token or newPassword in request body');
             return res.status(400).json({ message: 'Token dan password baru harus diisi!' });
         }
 

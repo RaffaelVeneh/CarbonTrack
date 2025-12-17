@@ -77,7 +77,15 @@ export function ThemeProvider({ children }) {
       refreshToken,
       loginTime: new Date().toISOString()
     };
+    // Primary storage for new auth system
     localStorage.setItem('userAuth', JSON.stringify(authData));
+    // Keep legacy keys for compatibility with existing pages
+    try {
+      localStorage.setItem('token', accessToken || '');
+      localStorage.setItem('user', JSON.stringify(userData || {}));
+    } catch (err) {
+      // ignore storage errors
+    }
     setUser(userData);
     setIsTokenExpired(false);
   }, []);
@@ -168,7 +176,14 @@ export function ThemeProvider({ children }) {
   }, []);
 
   const clearUserAuth = useCallback(() => {
-    localStorage.removeItem('userAuth');
+    // Remove both new and legacy storage keys
+    try {
+      localStorage.removeItem('userAuth');
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+    } catch (err) {
+      // ignore
+    }
     setUser(null);
     setIsTokenExpired(false);
   }, []);
