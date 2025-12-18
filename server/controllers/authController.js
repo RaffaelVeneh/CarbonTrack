@@ -5,26 +5,24 @@ const crypto = require('crypto');
 const emailService = require('../services/emailService');
 const db = require('../config/db');
 
-// Helper function untuk generate 2 JWT tokens
-const generateTokens = (userId, userEmail, username, plantHealth) => {
-    // Access Token (30 menit) - untuk penggunaan umum
+// Helper function to generate dual JWT tokens
+const generateTokens = (userId, userData = {}) => {
+    // Access Token: 30 minutes - for frequent API calls
     const accessToken = jwt.sign(
-        {
-            type: 'access',
+        { 
             id: userId,
-            email: userEmail,
-            username: username,
-            plant_health: plantHealth
+            type: 'access',
+            ...userData
         },
         process.env.JWT_SECRET,
         { expiresIn: '30m' }
     );
 
-    // Refresh Token (7 hari) - hanya untuk refresh access token
+    // Refresh Token: 7 days - for renewing access token
     const refreshToken = jwt.sign(
-        {
-            type: 'refresh',
-            id: userId
+        { 
+            id: userId,
+            type: 'refresh'
         },
         process.env.JWT_SECRET,
         { expiresIn: '7d' }
@@ -92,12 +90,18 @@ exports.googleAuth = async (req, res) => {
             user = await User.findByEmail(email);
         }
 
-        // Generate 2 JWT tokens
-        const { accessToken, refreshToken } = generateTokens(
-            user.id,
-            user.email,
-            user.username,
-            user.island_health
+        // Generate dual JWT tokens
+        const { accessToken, refreshToken } = generateTokens(user.id, {
+            username: user.username,
+            email: user.email,
+            island_health: user.island_health
+        });
+
+        // Store refresh token in database
+        const refreshExpires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
+        await db.execute(
+            'UPDATE users SET refresh_token = ?, refresh_token_expires = ? WHERE id = ?',
+            [refreshToken, refreshExpires, user.id]
         );
 
         res.json({
@@ -239,19 +243,11 @@ exports.register = async (req, res) => {
 exports.login = async (req, res) => {
     try {
         const { email, password } = req.body;
-        console.log('[Auth][Login] Attempt login for email:', email);
 
         // 1. Cek user ada atau tidak
         const user = await User.findByEmail(email);
         if (!user) {
-            console.warn('[Auth][Login] User not found for email:', email);
             return res.status(400).json({ message: 'Email atau password salah' });
-        }
-
-        // Debug: ensure password_hash exists
-        if (!user.password_hash) {
-            console.error('[Auth][Login] user record missing password_hash for user id:', user.id);
-            return res.status(500).json({ message: 'Server error - user password not set' });
         }
 
         // 2. Cek apakah email sudah terverifikasi
@@ -266,16 +262,21 @@ exports.login = async (req, res) => {
         // 3. Cek password cocok atau tidak
         const isMatch = await bcrypt.compare(password, user.password_hash);
         if (!isMatch) {
-            console.warn('[Auth][Login] Password mismatch for email:', email);
             return res.status(400).json({ message: 'Email atau password salah' });
         }
 
-        // 4. Generate 2 JWT tokens (access + refresh)
-        const { accessToken, refreshToken } = generateTokens(
-            user.id,
-            user.email,
-            user.username,
-            user.island_health
+        // 4. Generate dual JWT tokens
+        const { accessToken, refreshToken } = generateTokens(user.id, {
+            username: user.username,
+            email: user.email,
+            island_health: user.island_health
+        });
+
+        // Store refresh token in database
+        const refreshExpires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
+        await db.execute(
+            'UPDATE users SET refresh_token = ?, refresh_token_expires = ? WHERE id = ?',
+            [refreshToken, refreshExpires, user.id]
         );
 
         res.json({
@@ -292,7 +293,7 @@ exports.login = async (req, res) => {
             }
         });
     } catch (error) {
-        console.error('[Auth][Login] Error:', error);
+        console.error(error);
         res.status(500).json({ message: 'Server Error' });
     }
 };
@@ -329,12 +330,18 @@ exports.verifyEmail = async (req, res) => {
             [user.id]
         );
 
-        // Generate 2 JWT tokens for auto-login
-        const { accessToken, refreshToken } = generateTokens(
-            user.id,
-            user.email,
-            user.username,
-            user.island_health
+        // Generate dual JWT tokens for auto-login
+        const { accessToken, refreshToken } = generateTokens(user.id, {
+            username: user.username,
+            email: user.email,
+            island_health: user.island_health
+        });
+
+        // Store refresh token in database
+        const refreshExpires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
+        await db.execute(
+            'UPDATE users SET refresh_token = ?, refresh_token_expires = ? WHERE id = ?',
+            [refreshToken, refreshExpires, user.id]
         );
 
         // Return user data + tokens (auto login)
@@ -401,12 +408,9 @@ exports.forgotPassword = async (req, res) => {
 // RESET PASSWORD
 exports.resetPassword = async (req, res) => {
     try {
-        // Accept either { token, newPassword } or { token, password } from client
-        const { token } = req.body;
-        const newPassword = req.body.newPassword || req.body.password;
+        const { token, newPassword } = req.body;
 
         if (!token || !newPassword) {
-            console.warn('[Auth][ResetPassword] Missing token or newPassword in request body');
             return res.status(400).json({ message: 'Token dan password baru harus diisi!' });
         }
 
@@ -485,61 +489,106 @@ exports.resendVerification = async (req, res) => {
     }
 };
 
-// REFRESH ACCESS TOKEN
+// REFRESH TOKEN - Generate new access token using refresh token
 exports.refreshToken = async (req, res) => {
     try {
         const { refreshToken } = req.body;
 
         if (!refreshToken) {
-            return res.status(401).json({ message: 'Refresh token diperlukan!' });
+            return res.status(400).json({ 
+                message: 'Refresh token harus disediakan!',
+                requireAuth: true
+            });
         }
 
         // Verify refresh token
+        let decoded;
         try {
-            const decoded = jwt.verify(refreshToken, process.env.JWT_SECRET);
-
-            // Check if it's a refresh token
-            if (decoded.type !== 'refresh') {
-                return res.status(401).json({ message: 'Token tidak valid!' });
+            decoded = jwt.verify(refreshToken, process.env.JWT_SECRET);
+        } catch (error) {
+            if (error.name === 'TokenExpiredError') {
+                return res.status(401).json({ 
+                    message: 'Refresh token sudah kadaluarsa. Silakan login kembali.',
+                    requireAuth: true
+                });
             }
-
-            // Get user data
-            const user = await User.findById(decoded.id);
-            if (!user) {
-                return res.status(404).json({ message: 'User tidak ditemukan!' });
-            }
-
-            // Generate new access token
-            const { accessToken, refreshToken: newRefreshToken } = generateTokens(
-                user.id,
-                user.email,
-                user.username,
-                user.island_health
-            );
-
-            res.json({
-                message: 'Token refreshed successfully',
-                accessToken,
-                refreshToken: newRefreshToken
+            return res.status(401).json({ 
+                message: 'Refresh token tidak valid.',
+                requireAuth: true
             });
-        } catch (tokenError) {
-            console.error('Token verification error:', tokenError);
-            return res.status(401).json({ message: 'Refresh token tidak valid atau sudah kadaluarsa!' });
         }
+
+        // Check if this is a refresh token
+        if (decoded.type !== 'refresh') {
+            return res.status(401).json({ 
+                message: 'Token type tidak valid. Refresh token diperlukan.' 
+            });
+        }
+
+        // Check if refresh token exists and valid in database
+        const [users] = await db.execute(
+            'SELECT * FROM users WHERE id = ? AND refresh_token = ? AND refresh_token_expires > NOW()',
+            [decoded.id, refreshToken]
+        );
+
+        if (users.length === 0) {
+            return res.status(401).json({ 
+                message: 'Refresh token tidak valid atau sudah kadaluarsa. Silakan login kembali.',
+                requireAuth: true
+            });
+        }
+
+        const user = users[0];
+
+        // Generate new access token with user data
+        const newAccessToken = jwt.sign(
+            { 
+                id: user.id,
+                type: 'access',
+                username: user.username,
+                email: user.email,
+                island_health: user.island_health
+            },
+            process.env.JWT_SECRET,
+            { expiresIn: '30m' }
+        );
+
+        res.json({
+            message: 'Access token berhasil di-refresh',
+            accessToken: newAccessToken
+        });
     } catch (error) {
-        console.error(error);
+        console.error('Refresh token error:', error);
         res.status(500).json({ message: 'Server Error' });
     }
 };
 
-// LOGOUT (optional - untuk tracking, karena JWT stateless)
+// LOGOUT - Invalidate refresh token
 exports.logout = async (req, res) => {
     try {
-        // JWT adalah stateless, jadi logout di client cukup dengan delete token
-        // Tapi bisa juga simpan token di blacklist untuk additional security nanti
-        res.json({ message: 'Logout berhasil!' });
+        const { refreshToken } = req.body;
+
+        if (!refreshToken) {
+            return res.json({ message: 'Logout berhasil' });
+        }
+
+        // Verify token and get user ID
+        try {
+            const decoded = jwt.verify(refreshToken, process.env.JWT_SECRET);
+            
+            // Clear refresh token from database
+            await db.execute(
+                'UPDATE users SET refresh_token = NULL, refresh_token_expires = NULL WHERE id = ?',
+                [decoded.id]
+            );
+        } catch (error) {
+            // Even if token is invalid, still return success
+            console.log('Token verification failed during logout:', error.message);
+        }
+
+        res.json({ message: 'Logout berhasil' });
     } catch (error) {
-        console.error(error);
+        console.error('Logout error:', error);
         res.status(500).json({ message: 'Server Error' });
     }
 };

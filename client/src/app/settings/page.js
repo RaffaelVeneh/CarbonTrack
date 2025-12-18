@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import Sidebar from '@/components/Sidebar';
 import { Save, User, Mail, Lock, Shield, Calendar, Award, Zap, Flame, Clock, Eye, EyeOff, AlertCircle, CheckCircle2, Info, Sun, Moon, HelpCircle, KeyRound, ChevronDown, ChevronUp } from 'lucide-react';
 import { useTheme } from '@/contexts/ThemeContext';
+import { getUserFromStorage } from '@/utils/userStorage';
 
 export default function SettingsPage() {
   const { theme, toggleTheme } = useTheme();
@@ -44,7 +45,7 @@ export default function SettingsPage() {
   };
 
   useEffect(() => {
-    const storedUser = JSON.parse(localStorage.getItem('user'));
+    const storedUser = getUserFromStorage();
     if (storedUser) {
       fetchAccountInfo(storedUser.id);
     }
@@ -72,7 +73,7 @@ export default function SettingsPage() {
     setLoading(true);
     setMessage({ type: '', text: '' });
 
-    const storedUser = JSON.parse(localStorage.getItem('user'));
+    const storedUser = getUserFromStorage();
 
     try {
       const res = await fetch(`${API_URL}/users/update`, {
@@ -110,7 +111,7 @@ export default function SettingsPage() {
 
   const handleUpdatePrivacy = async () => {
     setLoading(true);
-    const storedUser = JSON.parse(localStorage.getItem('user'));
+    const storedUser = getUserFromStorage();
 
     try {
       const res = await fetch(`${API_URL}/users/privacy`, {
@@ -157,7 +158,7 @@ export default function SettingsPage() {
       return;
     }
 
-    const storedUser = JSON.parse(localStorage.getItem('user'));
+    const storedUser = getUserFromStorage();
 
     try {
       const res = await fetch(`${API_URL}/users/change-password`, {

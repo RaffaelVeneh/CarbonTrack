@@ -4,7 +4,9 @@ import { useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image'; 
 import { usePathname, useRouter } from 'next/navigation';
-import { LayoutDashboard, Target, Award, Users, Bot, LogOut, Settings, AlertTriangle, History } from 'lucide-react'; 
+import { LayoutDashboard, Target, Award, Users, Bot, LogOut, Settings, AlertTriangle, History } from 'lucide-react';
+import { useTheme } from '@/contexts/ThemeContext';
+import { logout as logoutUser } from '@/utils/auth';
 
 export default function Sidebar() {
   const pathname = usePathname();
@@ -12,14 +14,22 @@ export default function Sidebar() {
   
   const [showLogoutModal, setShowLogoutModal] = useState(false);
 
+  const { logout, clearUserAuth } = useTheme();
+
   const handleLogoutClick = () => {
     setShowLogoutModal(true);
   };
 
-  const confirmLogout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    router.push('/'); 
+  const confirmLogout = async () => {
+    // Use auth utility logout function (calls API and clears tokens)
+    try {
+      await logoutUser();
+      // logoutUser() already handles redirect to /login
+    } catch (err) {
+      console.error('Logout error:', err);
+      // Force redirect even if API call fails
+      router.push('/login');
+    }
   };
 
   const menuItems = [

@@ -247,8 +247,16 @@ exports.getUserProfile = async (req, res) => {
                 b.id
         `, [userId]);
 
+        // Merge stats into user object for frontend compatibility
+        const userWithStats = {
+            ...userRows[0],
+            co2_saved: logRows[0].total_saved || 0,
+            total_emission: logRows[0].total_emission || 0,
+            total_logs: logRows[0].total_logs || 0
+        };
+
         res.json({
-            user: userRows[0],
+            user: userWithStats,
             stats: {
                 totalEmission: logRows[0].total_emission || 0,
                 totalSaved: logRows[0].total_saved || 0,

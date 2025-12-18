@@ -4,7 +4,8 @@ import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import Sidebar from '@/components/Sidebar';
 import ActivityModal from '@/components/ActivityModal';
-import Lottie from 'lottie-react'; 
+import Lottie from 'lottie-react';
+import { apiGet } from '@/utils/auth'; 
 
 // Import Animasi
 import healthyAnim from '@/assets/lottie/healthy.json';
@@ -64,9 +65,8 @@ export default function Dashboard() {
   const fetchAllData = useCallback(async (userId) => {
     setLoading(true);
     try {
-      // A. Ambil Statistik
-      const resStats = await fetch(`${API_URL}/logs/summary/${userId}`);
-      const dataStats = await resStats.json();
+      // A. Ambil Statistik (with JWT auth)
+      const dataStats = await apiGet(`/logs/summary/${userId}`);
       
       const normalizedStats = {
         todayEmission: parseFloat(dataStats?.todayEmission || 0),
@@ -87,28 +87,21 @@ export default function Dashboard() {
       }
       setStats(normalizedStats);
 
-      // B. Ambil Recent Activities
+      // B. Ambil Recent Activities (with JWT auth)
       try {
-        const resActivities = await fetch(`${API_URL}/logs/daily/${userId}`);
-        if (resActivities.ok) {
-          const dataActivities = await resActivities.json();
-          if (Array.isArray(dataActivities)) {
-            setRecentActivities(dataActivities.slice(0, 5)); // Ambil 5 terakhir
-          }
-        } else {
-          console.log('Recent activities endpoint not available yet');
-          setRecentActivities([]);
+        const dataActivities = await apiGet(`/logs/daily/${userId}`);
+        if (Array.isArray(dataActivities)) {
+          setRecentActivities(dataActivities.slice(0, 5)); // Ambil 5 terakhir
         }
       } catch (err) {
         console.log('Failed to fetch recent activities:', err.message);
         setRecentActivities([]);
       }
 
-      // C. Ambil Profil User TERBARU (Health & Level & Streak)
-      const resUser = await fetch(`${API_URL}/users/profile/${userId}`);
-      const dataUser = await resUser.json();
+      // C. Ambil Profil User TERBARU (Health & Level & Streak) - with JWT auth
+      const dataUser = await apiGet(`/users/profile/${userId}`);
       
-      if (resUser.ok && dataUser.user) {
+      if (dataUser.user) {
         const updatedUser = { 
             ...user, 
             ...dataUser.user,
@@ -116,6 +109,7 @@ export default function Dashboard() {
         };
         setUser(updatedUser);
         localStorage.setItem('user', JSON.stringify(updatedUser));
+        localStorage.setItem('userData', JSON.stringify(updatedUser)); // JWT system
         updateTreeUI(dataUser.user.island_health);
       }
 
@@ -191,15 +185,27 @@ export default function Dashboard() {
 
   // Load Awal
   useEffect(() => {
-    const token = localStorage.getItem('token');
-    const userData = localStorage.getItem('user');
+    // Support both new JWT system and legacy token system
+    const newAccessToken = localStorage.getItem('accessToken');
+    const newUserData = localStorage.getItem('userData');
+    const legacyToken = localStorage.getItem('token');
+    const legacyUser = localStorage.getItem('user');
 
-    if (!token || !userData) {
+    // Check new JWT system first, fallback to legacy
+    const token = newAccessToken || legacyToken;
+    const userDataStr = newUserData || legacyUser;
+
+    if (!token || !userDataStr) {
       router.push('/login');
     } else {
-      const parsedUser = JSON.parse(userData);
-      setUser(parsedUser);
-      fetchAllData(parsedUser.id);
+      try {
+        const parsedUser = JSON.parse(userDataStr);
+        setUser(parsedUser);
+        fetchAllData(parsedUser.id);
+      } catch (error) {
+        console.error('Invalid user data:', error);
+        router.push('/login');
+      }
     }
   }, []); 
 

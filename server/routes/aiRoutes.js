@@ -1,8 +1,9 @@
 const express = require('express');
 const router = express.Router();
 const aiController = require('../controllers/aiController');
+const { verifyUserToken } = require('../middleware/authMiddleware');
 
-// Route untuk tanya AI
-router.post('/ask', aiController.askAssistant);
+// Protected routes (require JWT authentication)
+router.post('/ask', verifyUserToken, aiController.askAssistant);
 
 module.exports = router;

@@ -1,11 +1,13 @@
 const express = require('express');
 const router = express.Router();
 const logController = require('../controllers/logController');
+const { verifyUserToken } = require('../middleware/authMiddleware');
 
-router.get('/activities', logController.getActivities); // Ambil list aktivitas
-router.post('/', logController.createLog);              // Submit log baru
-router.get('/summary/:userId', logController.getDashboardSummary);
-router.get('/history/:userId', logController.getHistoryLogs);
-router.get('/daily/:userId', logController.getDailyLogs); // NEW: Get daily logs for recent activities
+// Protected routes (require JWT authentication)
+router.get('/activities', verifyUserToken, logController.getActivities);
+router.post('/', verifyUserToken, logController.createLog);
+router.get('/summary/:userId', verifyUserToken, logController.getDashboardSummary);
+router.get('/history/:userId', verifyUserToken, logController.getHistoryLogs);
+router.get('/daily/:userId', verifyUserToken, logController.getDailyLogs);
 
 module.exports = router;

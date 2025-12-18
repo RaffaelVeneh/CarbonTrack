@@ -1,11 +1,10 @@
 const express = require('express');
 const router = express.Router();
 const weeklyMissionController = require('../controllers/weeklyMissionController');
+const { verifyUserToken } = require('../middleware/authMiddleware');
 
-// GET weekly missions untuk user
-router.get('/:userId', weeklyMissionController.getWeeklyMissions);
-
-// POST claim weekly mission
-router.post('/claim', weeklyMissionController.claimWeeklyMission);
+// Protected routes (require JWT authentication)
+router.get('/:userId', verifyUserToken, weeklyMissionController.getWeeklyMissions);
+router.post('/claim', verifyUserToken, weeklyMissionController.claimWeeklyMission);
 
 module.exports = router;

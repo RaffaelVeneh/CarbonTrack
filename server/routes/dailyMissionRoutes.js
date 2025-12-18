@@ -1,17 +1,14 @@
 const express = require('express');
 const router = express.Router();
 const dailyMissionController = require('../controllers/dailyMissionController');
+const { verifyUserToken } = require('../middleware/authMiddleware');
 
-// GET daily missions untuk user
-router.get('/:userId', dailyMissionController.getDailyMissions);
+// Protected routes (require JWT authentication)
+router.get('/:userId', verifyUserToken, dailyMissionController.getDailyMissions);
+router.get('/plant-health/:userId', verifyUserToken, dailyMissionController.getPlantHealth);
+router.post('/claim', verifyUserToken, dailyMissionController.claimDailyMission);
 
-// GET plant health untuk user
-router.get('/plant-health/:userId', dailyMissionController.getPlantHealth);
-
-// POST claim daily mission
-router.post('/claim', dailyMissionController.claimDailyMission);
-
-// POST reset health (cron job endpoint)
+// Cron job endpoint (no auth - should be called from internal scheduler)
 router.post('/reset-health', dailyMissionController.resetHealthDaily);
 
 module.exports = router;

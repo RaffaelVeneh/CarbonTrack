@@ -5,25 +5,18 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image'; 
 import { Leaf, ArrowRight, Activity, Award, Zap } from 'lucide-react';
+import { isAuthenticated, getUserData } from '@/utils/auth';
 
 export default function LandingPage() {
   const router = useRouter();
 
   useEffect(() => {
-    // Check if user is already logged in
-    const userData = localStorage.getItem('user');
-    if (userData) {
-      try {
-        const user = JSON.parse(userData);
-        // If user data exists and has valid id, redirect to dashboard
-        if (user && user.id) {
-          console.log('User already logged in, redirecting to dashboard...');
-          router.push('/dashboard');
-        }
-      } catch (error) {
-        // If localStorage data is corrupted, clear it
-        console.error('Invalid user data in localStorage:', error);
-        localStorage.removeItem('user');
+    // Check if user is already logged in with JWT
+    if (isAuthenticated()) {
+      const user = getUserData();
+      if (user && user.id) {
+        console.log('User authenticated with JWT, redirecting to dashboard...');
+        router.push('/dashboard');
       }
     }
   }, [router]);

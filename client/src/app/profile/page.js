@@ -8,6 +8,7 @@ import {
   Award, Zap, Heart, Trophy, Sparkles, Target, 
   Activity, BarChart3, Flame, Crown
 } from 'lucide-react';
+import { getUserFromStorage } from '@/utils/userStorage';
 
 export default function ProfilePage() {
   const [user, setUser] = useState(null);
@@ -19,8 +20,8 @@ export default function ProfilePage() {
   const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
 
   useEffect(() => {
-    // 1. Ambil data awal dari LocalStorage (mungkin data lama)
-    const userData = JSON.parse(localStorage.getItem('user'));
+    // 1. Ambil data awal dari localStorage (support JWT)
+    const userData = getUserFromStorage();
     if (userData) {
         setUser(userData);
         // 2. Panggil data terbaru dari server

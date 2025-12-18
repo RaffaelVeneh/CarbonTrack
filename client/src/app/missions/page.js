@@ -8,6 +8,7 @@ import DailyMissionsTab from '@/components/DailyMissionsTab';
 import WeeklyMissionsTab from '@/components/WeeklyMissionsTab';
 import { Target, CheckCircle, Lock, Zap, PartyPopper, TrendingUp, ArrowRight } from 'lucide-react';
 import { useBadge } from '@/contexts/BadgeContext';
+import { getUserFromStorage } from '@/utils/userStorage';
 
 // Lazy load heavy components
 const EcoPlant = lazy(() => import('@/components/EcoPlant'));
@@ -65,7 +66,7 @@ export default function MissionsPage() {
   }, [API_URL]);
 
   useEffect(() => {
-    const userData = JSON.parse(localStorage.getItem('user'));
+    const userData = getUserFromStorage();
     setUser(userData);
     if (userData) {
       Promise.all([

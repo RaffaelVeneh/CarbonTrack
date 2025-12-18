@@ -7,6 +7,7 @@ import {
   Search, X, Clock, MapPin, Activity, BarChart3, PieChart, Zap, Trash2,
   CheckCircle, AlertCircle, ChevronDown, ChevronUp
 } from 'lucide-react';
+import { getUserFromStorage } from '@/utils/userStorage';
 
 export default function HistoryPage() {
   const [logs, setLogs] = useState([]);
@@ -23,7 +24,7 @@ export default function HistoryPage() {
   const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
 
   useEffect(() => {
-    const userData = JSON.parse(localStorage.getItem('user'));
+    const userData = getUserFromStorage();
     setUser(userData);
   }, []);
 

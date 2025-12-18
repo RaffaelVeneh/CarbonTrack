@@ -6,6 +6,8 @@ import Sidebar from '@/components/Sidebar';
 import { Send, Bot, User, RotateCcw, ExternalLink, Target, Moon, Sun, ArrowRight, BarChart3, Activity, X, Zap, Leaf } from 'lucide-react';
 import { useTheme } from '@/contexts/ThemeContext';
 import ActivityModal from '@/components/ActivityModal';
+import { getUserFromStorage } from '@/utils/userStorage';
+import { apiGet, apiPost } from '@/utils/auth';
 
 // Mission Detail Modal Component
 function MissionDetailModal({ mission, onClose, onNavigate }) {
@@ -77,7 +79,9 @@ function MissionDetailModal({ mission, onClose, onNavigate }) {
 
 // Stats Card Modal Component
 function StatsModal({ user, onClose }) {
-  const netImpact = (user.co2_saved || 0) - (user.total_emission || 0);
+  const co2Saved = parseFloat(user.co2_saved) || 0;
+  const totalEmission = parseFloat(user.total_emission) || 0;
+  const netImpact = co2Saved - totalEmission;
   
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={onClose}>
@@ -107,7 +111,7 @@ function StatsModal({ user, onClose }) {
 
           <div className="bg-gradient-to-br from-emerald-50 to-teal-50 dark:from-emerald-900/20 dark:to-teal-900/20 p-4 rounded-xl border border-emerald-200 dark:border-emerald-700">
             <div className="text-sm font-semibold text-emerald-600 dark:text-emerald-400 mb-1">CO2 Saved</div>
-            <div className="text-2xl font-black text-emerald-700 dark:text-emerald-300">{(user.co2_saved || 0).toFixed(1)} kg</div>
+            <div className="text-2xl font-black text-emerald-700 dark:text-emerald-300">{co2Saved.toFixed(1)} kg</div>
           </div>
         </div>
 
@@ -346,7 +350,7 @@ export default function AssistantPage() {
     setIsClient(true);
     
     // Load user data
-    const userData = JSON.parse(localStorage.getItem('user'));
+    const userData = getUserFromStorage();
     if (userData) {
       setUser(userData);
     }
@@ -406,8 +410,6 @@ export default function AssistantPage() {
   const sendMessage = async (messageText) => {
     if (!messageText.trim()) return;
 
-    const API_URL = process.env.NEXT_PUBLIC_API_URL;
-
     // 1. Tambahkan pesan user ke chat
     const userMessage = { role: 'user', text: messageText };
     setMessages(prev => [...prev, userMessage]);
@@ -415,14 +417,38 @@ export default function AssistantPage() {
     setLoading(true);
 
     try {
-      // 2. Prepare user context
-      const userContext = user ? {
-        level: user.level || user.current_level || 1,
-        totalXp: user.total_xp || 0,
-        streak: user.current_streak || 0,
-        co2Saved: user.co2_saved || 0,
-        totalEmission: user.total_emission || 0
-      } : null;
+      // 2. Fetch latest user data dari server untuk context yang akurat
+      let userContext = null;
+      if (user && user.id) {
+        try {
+          const freshUserData = await apiGet(`/users/profile/${user.id}`);
+          if (freshUserData && freshUserData.user) {
+            const latestUser = freshUserData.user;
+            userContext = {
+              level: latestUser.current_level || latestUser.level || 1,
+              totalXp: latestUser.total_xp || 0,
+              streak: latestUser.current_streak || 0,
+              co2Saved: latestUser.co2_saved || 0,
+              totalEmission: latestUser.total_emission || 0,
+              islandHealth: latestUser.island_health || 0
+            };
+            // Update local user state juga
+            setUser(latestUser);
+            console.log('✅ Fresh user context for AI:', userContext);
+          }
+        } catch (err) {
+          console.error('Failed to fetch fresh user data, using cached:', err);
+          // Fallback ke user state yang ada
+          userContext = {
+            level: user.level || user.current_level || 1,
+            totalXp: user.total_xp || 0,
+            streak: user.current_streak || 0,
+            co2Saved: user.co2_saved || 0,
+            totalEmission: user.total_emission || 0,
+            islandHealth: user.island_health || 0
+          };
+        }
+      }
 
       // 3. Prepare chat history (current messages before the new user message)
       const chatHistory = messages.map(msg => ({
@@ -430,18 +456,12 @@ export default function AssistantPage() {
         text: msg.text
       }));
 
-      // 4. Kirim ke Backend AI dengan context dan chat history
-      const res = await fetch(`${API_URL}/ai/ask`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          question: userMessage.text,
-          userContext,
-          chatHistory // Include conversation history
-        })
+      // 4. Kirim ke Backend AI dengan JWT auth dan fresh context
+      const data = await apiPost('/ai/ask', {
+        question: userMessage.text,
+        userContext,
+        chatHistory
       });
-      
-      const data = await res.json();
 
       // 5. Tambahkan balasan Bot dengan actions
       setMessages(prev => [...prev, { 
@@ -450,7 +470,11 @@ export default function AssistantPage() {
         actions: data.actions || []
       }]);
     } catch (error) {
-      setMessages(prev => [...prev, { role: 'bot', text: 'Maaf, EcoBot sedang pusing (Server Error). 😵' }]);
+      console.error('AI request error:', error);
+      setMessages(prev => [...prev, { 
+        role: 'bot', 
+        text: 'Maaf, EcoBot sedang pusing (Server Error). 😵'
+      }]);
     } finally {
       setLoading(false);
     }
@@ -633,7 +657,7 @@ export default function AssistantPage() {
           userId={user.id}
           onRefresh={() => {
             // Refresh user data after activity logged
-            const userData = JSON.parse(localStorage.getItem('user'));
+            const userData = getUserFromStorage();
             if (userData) setUser(userData);
           }}
           onActivityLogged={handleActivityLogged}

@@ -1,6 +1,6 @@
 const jwt = require('jsonwebtoken');
 
-// Middleware to verify JWT token
+// Middleware to verify JWT token for ADMIN
 const verifyToken = (req, res, next) => {
     try {
         // Get token from Authorization header
@@ -33,12 +33,74 @@ const verifyToken = (req, res, next) => {
     } catch (error) {
         if (error.name === 'TokenExpiredError') {
             return res.status(401).json({ 
-                message: 'Token expired. Please login again.' 
+                message: 'Token expired. Please login again.',
+                tokenExpired: true
             });
         }
         if (error.name === 'JsonWebTokenError') {
             return res.status(401).json({ 
                 message: 'Invalid token.' 
+            });
+        }
+        return res.status(500).json({ 
+            message: 'Token verification failed.',
+            error: error.message 
+        });
+    }
+};
+
+// Middleware to verify JWT token for REGULAR USERS (Access Token)
+const verifyUserToken = (req, res, next) => {
+    try {
+        // Get token from Authorization header
+        const authHeader = req.headers['authorization'];
+        
+        if (!authHeader) {
+            return res.status(401).json({ 
+                message: 'Access denied. No token provided.',
+                requireAuth: true
+            });
+        }
+
+        // Token format: "Bearer <token>"
+        const token = authHeader.startsWith('Bearer ') 
+            ? authHeader.slice(7) 
+            : authHeader;
+
+        if (!token) {
+            return res.status(401).json({ 
+                message: 'Access denied. Invalid token format.',
+                requireAuth: true
+            });
+        }
+
+        // Verify token
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        
+        // Check if this is an access token (not refresh token)
+        if (decoded.type !== 'access') {
+            return res.status(401).json({ 
+                message: 'Invalid token type. Access token required.' 
+            });
+        }
+        
+        // Attach decoded user info to request
+        req.user = decoded;
+        req.userId = decoded.id;
+        
+        next();
+    } catch (error) {
+        if (error.name === 'TokenExpiredError') {
+            return res.status(401).json({ 
+                message: 'Access token expired. Please refresh your token.',
+                tokenExpired: true,
+                requireRefresh: true
+            });
+        }
+        if (error.name === 'JsonWebTokenError') {
+            return res.status(401).json({ 
+                message: 'Invalid access token.',
+                requireAuth: true
             });
         }
         return res.status(500).json({ 
@@ -74,4 +136,4 @@ const isAdmin = (req, res, next) => {
     }
 };
 
-module.exports = { verifyToken, isAdmin };
+module.exports = { verifyToken, verifyUserToken, isAdmin };

@@ -3,7 +3,8 @@
 import { useState, useEffect, Suspense } from 'react'; // Tambah useEffect & Suspense
 import { useRouter, useSearchParams } from 'next/navigation'; // Tambah useSearchParams
 import { signIn } from 'next-auth/react';
-import { CheckCircle, Eye, EyeOff } from 'lucide-react'; 
+import { CheckCircle, Eye, EyeOff } from 'lucide-react';
+import { setTokens, isAuthenticated, getUserData } from '@/utils/auth'; 
 
 // Kita butuh komponen pembungkus (Wrapper) agar useSearchParams aman
 export default function LoginPage() {
@@ -18,22 +19,15 @@ function AuthContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [isFlipped, setIsFlipped] = useState(false);
-  const { saveUserAuth } = require('@/contexts/ThemeContext').useTheme?.() || {};
 
   // Check if user is already logged in
   useEffect(() => {
-    const userAuth = localStorage.getItem('userAuth');
-    if (userAuth) {
-      try {
-        const authData = JSON.parse(userAuth);
-        if (authData && authData.user && authData.user.id) {
-          console.log('User already logged in, redirecting to dashboard...');
-          router.push('/dashboard');
-          return;
-        }
-      } catch (error) {
-        console.error('Invalid user auth data:', error);
-        localStorage.removeItem('userAuth');
+    if (isAuthenticated()) {
+      const user = getUserData();
+      if (user && user.id) {
+        console.log('User already logged in, redirecting to dashboard...');
+        router.push('/dashboard');
+        return;
       }
     }
 
@@ -100,11 +94,10 @@ function AuthContent() {
 }
 
 // ==========================================
-// 1. KOMPONEN LOGIN (Updated dengan 2 Tokens)
+// 1. KOMPONEN LOGIN (Tetap Sama)
 // ==========================================
 function LoginForm({ onSwitch }) {
   const router = useRouter();
-  const { saveUserAuth } = require('@/contexts/ThemeContext').useTheme?.() || {};
   const [formData, setFormData] = useState({ email: '', password: '' });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -114,21 +107,16 @@ function LoginForm({ onSwitch }) {
   const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
   const handleSubmit = async (e) => {
-    e.preventDefault(); 
-    setError(''); 
-    setLoading(true);
+    e.preventDefault(); setError(''); setLoading(true);
     try {
       const res = await fetch(`${API_URL}/auth/login`, {
-        method: 'POST', 
-        headers: { 'Content-Type': 'application/json' }, 
-        body: JSON.stringify(formData),
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(formData),
       });
       const data = await res.json();
       if (res.ok) {
-        // Save dengan 2 tokens (access + refresh)
-        if (saveUserAuth) {
-          saveUserAuth(data.user, data.accessToken, data.refreshToken);
-        }
+        // Store dual JWT tokens
+        setTokens(data.accessToken, data.refreshToken, data.user);
+        console.log('✅ Login successful with dual JWT tokens');
         router.push('/dashboard');
       } else {
         // If email not verified, redirect to register page for verification
@@ -141,11 +129,7 @@ function LoginForm({ onSwitch }) {
           setError(data.message || 'Email atau password salah');
         }
       }
-    } catch (err) { 
-      setError('Gagal menghubungi server'); 
-    } finally { 
-      setLoading(false); 
-    }
+    } catch (err) { setError('Gagal menghubungi server'); } finally { setLoading(false); }
   };
 
   return (
@@ -283,9 +267,11 @@ function LoginForm({ onSwitch }) {
   );
 }
 
+// ==========================================
+// 2. KOMPONEN REGISTER (dengan Verifikasi Kode)
+// ==========================================
 function RegisterForm({ onSwitch }) {
   const router = useRouter();
-  const { saveUserAuth } = require('@/contexts/ThemeContext').useTheme?.() || {};
   const [formData, setFormData] = useState({ username: '', email: '', password: '' });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -395,9 +381,7 @@ function RegisterForm({ onSwitch }) {
   };
 
   const handleVerify = async (e) => {
-    e.preventDefault(); 
-    setError(''); 
-    setLoading(true);
+    e.preventDefault(); setError(''); setLoading(true);
     try {
       const res = await fetch(`${API_URL}/auth/verify-email`, {
         method: 'POST',
@@ -406,20 +390,15 @@ function RegisterForm({ onSwitch }) {
       });
       const data = await res.json();
       if (res.ok) {
-        // Auto-login: simpan 2 tokens dan user data
-        if (saveUserAuth) {
-          saveUserAuth(data.user, data.accessToken, data.refreshToken);
-        }
+        // Auto-login: simpan dual JWT tokens
+        setTokens(data.accessToken, data.refreshToken, data.user);
+        console.log('✅ Email verified, auto-login with dual JWT tokens');
         // Redirect ke dashboard
         router.push('/dashboard');
       } else {
         setError(data.message || 'Kode verifikasi salah');
       }
-    } catch (err) { 
-      setError('Gagal menghubungi server'); 
-    } finally { 
-      setLoading(false); 
-    }
+    } catch (err) { setError('Gagal menghubungi server'); } finally { setLoading(false); }
   };
 
   const handleResend = async () => {
