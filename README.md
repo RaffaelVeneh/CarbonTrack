@@ -21,7 +21,11 @@ CarbonTrack is a comprehensive full-stack web application designed to empower us
 - **💾 Persistent Chat History**: AI chatbot conversations saved in localStorage with "New Chat" functionality.
 - **🎊 Celebration System**: Confetti animations and reward feedback when completing missions, earning badges, or leveling up.
 - **📈 Multi-Type Mission Tracking**: Intelligent progress calculation for various mission types including CO2-based, activity-based, and streak-based challenges.
-- **🔐 Secure Authentication**: JWT-based authentication with BCrypt password hashing, email verification, and OAuth 2.0 integration.
+- **🔐 Secure Authentication**: Dual JWT-based authentication (accessToken 30m + refreshToken 7d) with BCrypt password hashing, email verification, and OAuth 2.0 integration.
+- **⚡ Redis Performance Cache**: Upstash Redis integration for caching user status, XP, levels, and CO2 data with automatic TTL management (1h for status, 30m for user data).
+- **🔴 Real-Time WebSocket**: Socket.io integration for live status updates, ban/unban notifications, and admin panel real-time monitoring.
+- **👨‍💼 Admin Panel**: Comprehensive admin dashboard with user management, ban controls, real-time user status monitoring, and blue gradient theme matching the main dashboard.
+- **🔄 Session Separation**: Complete isolation between admin and user sessions with separate authentication flows and JWT tokens.
 - **🎯 Level-Gated Content**: Missions unlock progressively as users level up (100 XP per level).
 - **📬 Notification System**: Real-time notifications for mission completions, badge unlocks, and daily/weekly mission resets.
 - **⚙️ User Settings**: Customize username with cooldown protection and manage account preferences.
@@ -46,15 +50,19 @@ CarbonTrack is a comprehensive full-stack web application designed to empower us
 - **Framework**: Express.js 5 (RESTful API)
 - **Database**: MySQL 8+ / TiDB Cloud (Serverless MySQL-compatible)
 - **ORM**: Raw SQL queries with `mysql2` promise-based connection pool
+- **Cache Layer**: Redis (Upstash Cloud) for performance optimization
+- **Real-Time**: Socket.io for WebSocket connections
 - **AI Integration**: Groq SDK (LLaMA 3.3 70B Versatile model)
 - **Authentication**: 
-  - JSON Web Tokens (JWT) for session management
+  - Dual JSON Web Tokens (accessToken 30min, refreshToken 7days)
   - BCrypt for password hashing (10 salt rounds)
-- **Security**: CORS, dotenv for environment variables
+  - Separate admin authentication (adminToken 24h)
+- **Security**: CORS, dotenv for environment variables, token blacklist
 - **Development**: Nodemon for hot-reload
 
 ### Database Schema
-- **Users**: id, username, email, password, total_xp, current_level, island_health, email_verified, verification_token, reset_token, reset_token_expires, google_id, last_username_change, created_at
+- **Users**: id, username, email, password, total_xp, current_level, island_health, email_verified, verification_token, reset_token, reset_token_expires, google_id, last_username_change, status (online/offline/banned/idle), created_at
+- **Admins**: id, username, email, password, created_at (separate table for admin authentication)
 - **Activities**: id, name, category, co2_per_unit, unit
 - **Daily Logs**: id, user_id, activity_id, input_value, carbon_emission, carbon_saved, log_date, created_at
 - **Missions**: id, title, description, mission_type (enum), target_value, duration_days, required_activity_id, min_level, max_level, xp_reward, health_reward, icon, difficulty (enum)
@@ -66,6 +74,13 @@ CarbonTrack is a comprehensive full-stack web application designed to empower us
 - **Badges**: id, name, description, icon, requirement_type (enum), requirement_value, created_at
 - **User Badges**: id, user_id, badge_id, earned_at
 - **Notifications**: id, user_id, type, title, message, is_read, created_at
+
+### Redis Cache Structure
+- **Token Blacklist**: `blacklist:{token}` - Invalidated JWT tokens with TTL
+- **User Status**: `user:status:{userId}` - Online/offline/banned status (TTL: 1 hour)
+- **User Data**: `user:data:{userId}` - Cached total_xp, current_level, island_health (TTL: 30 minutes)
+- **User CO2**: `user:co2:{userId}` - Cached total CO2 saved (TTL: 30 minutes)
+- **Refresh Tokens**: `refresh:{token}` - Valid refresh tokens for token rotation
 
 ## 🚀 Getting Started
 
@@ -119,6 +134,10 @@ The project consists of two main parts: the `client` (Frontend) and the `server`
 
    # Authentication
    JWT_SECRET=your_jwt_secret_key_here
+   ADMIN_JWT_SECRET=your_admin_jwt_secret_key_here
+
+   # Redis Configuration (Upstash Cloud - FREE tier available)
+   REDIS_URL=rediss://default:your_password@your-redis-url.upstash.io:6379
 
    # Groq AI API Key (FREE - Get from https://console.groq.com/keys)
    GROQ_API_KEY=gsk_your_groq_api_key_here
@@ -142,6 +161,13 @@ The project consists of two main parts: the `client` (Frontend) and the `server`
    3. Click "Create API Key" → Copy the key (format: `gsk_...`)
    4. Paste into `.env` as shown above
    5. Free tier includes **14,400 requests/day** (more than enough!)
+   
+   **⚡ Setting up Redis Cache (5 minutes, FREE):**
+   1. Visit https://console.upstash.com/ and sign up
+   2. Create a new Redis database (select Global for better latency)
+   3. Copy the connection string (format: `rediss://default:...@....upstash.io:6379`)
+   4. Paste into `.env` as `REDIS_URL`
+   5. Free tier includes **10,000 commands/day** and **256MB storage**
    
    **📧 Setting up Email Service:**
    See `server/migrations/SETUP_EMAIL.md` for detailed instructions on configuring Gmail SMTP or other email providers.
@@ -212,6 +238,11 @@ CarbonTrack/
 │   │   │   │   └── page.js
 │   │   │   ├── login/                   # 🔐 Login page
 │   │   │   │   └── page.js
+│   │   │   ├── admin/                   # 👨‍💼 Admin panel routes
+│   │   │   │   ├── login/               # Admin login page
+│   │   │   │   │   └── page.js
+│   │   │   │   └── users/               # User management panel
+│   │   │   │       └── page.js
 │   │   │   ├── forgot-password/         # 🔑 Password recovery
 │   │   │   │   └── page.js
 │   │   │   └── reset-password/          # 🔄 Password reset
@@ -233,7 +264,8 @@ CarbonTrack/
 │   │   ├── contexts/
 │   │   │   ├── ThemeContext.js          # Theme management
 │   │   │   └── BadgeContext.js          # Badge state management
-│   │   └── utils/                       # Helper functions
+│   │   └── utils/
+│   │       └── auth.js                  # JWT utility functions (apiGet, apiPost, setTokens)
 │   ├── public/                          # Static assets
 │   ├── .env.local                       # Client environment variables
 │   ├── package.json                     # Frontend dependencies
@@ -248,11 +280,12 @@ CarbonTrack/
     │   └── scheduler.js                 # Cron jobs for daily/weekly resets
     ├── controllers/
     │   ├── aiController.js              # 🤖 Groq AI integration
-    │   ├── authController.js            # 🔐 Login/Register/OAuth logic
+    │   ├── authController.js            # 🔐 Login/Register/OAuth logic with WebSocket
+    │   ├── adminController.js           # 👨‍💼 Admin operations (ban/unban with real-time)
     │   ├── logController.js             # 📊 Activity logging & stats
-    │   ├── missionControllerV2.js       # 🎯 Mission progress & rewards
-    │   ├── dailyMissionController.js    # 📅 Daily mission management
-    │   ├── weeklyMissionController.js   # 📆 Weekly mission management
+    │   ├── missionControllerV2.js       # 🎯 Mission progress & rewards (Redis cache)
+    │   ├── dailyMissionController.js    # 📅 Daily mission management (Redis cache)
+    │   ├── weeklyMissionController.js   # 📆 Weekly mission management (Redis cache)
     │   ├── badgeController.js           # 🏅 Badge system & achievements
     │   └── userController.js            # 👤 User profile & leaderboard
     ├── models/
@@ -260,6 +293,7 @@ CarbonTrack/
     ├── routes/
     │   ├── aiRoutes.js                  # POST /api/ai/ask
     │   ├── authRoutes.js                # POST /api/auth/* (login, register, verify, reset)
+    │   ├── adminRoutes.js               # POST /api/admin/* (login, user management)
     │   ├── logRoutes.js                 # GET|POST /api/logs/*
     │   ├── missionRoutes.js             # GET|POST /api/missions/*
     │   ├── dailyMissionRoutes.js        # GET|POST /api/daily-missions/*
@@ -267,7 +301,8 @@ CarbonTrack/
     │   ├── badgeRoutes.js               # GET /api/badges/*
     │   └── userRoutes.js                # GET|PUT /api/users/*
     ├── services/
-    │   └── emailService.js              # Email sending functionality
+    │   ├── emailService.js              # Email sending functionality
+    │   └── tokenBlacklist.js            # Redis cache service (tokens, user data, CO2)
     ├── migrations/
     │   ├── db.sql                       # Main database schema
     │   ├── add_email_verification.sql   # Email verification tables
@@ -289,11 +324,18 @@ CarbonTrack/
 
 ### Authentication (`/api/auth`)
 - `POST /api/auth/register` - Register new user (username, email, password)
-- `POST /api/auth/login` - User login → Returns JWT token
-- `POST /api/auth/google` - Google OAuth login/register
+- `POST /api/auth/login` - User login → Returns dual JWT tokens (accessToken + refreshToken)
+- `POST /api/auth/logout` - User logout → Blacklist tokens and emit WebSocket event
+- `POST /api/auth/refresh` - Refresh access token using refresh token
+- `POST /api/auth/google-auth` - Google OAuth login/register → Returns dual JWT tokens
 - `GET /api/auth/verify-email/:token` - Verify email address
 - `POST /api/auth/forgot-password` - Request password reset email
 - `POST /api/auth/reset-password/:token` - Reset password with token
+
+### Admin (`/api/admin`)
+- `POST /api/admin/login` - Admin login → Returns adminToken (24h validity)
+- `GET /api/admin/users` - Get all users with pagination
+- `PUT /api/admin/users/:userId/status` - Ban/unban user → Emits real-time event to admin panel
 
 ### Activity Logs (`/api/logs`)
 - `GET /api/logs/summary/:userId` - Dashboard summary (today/total emissions, savings, graph data)
@@ -416,6 +458,38 @@ Earn badges by reaching milestones:
 - **Fallback System**: Keyword matching if API unavailable
 - **Natural Language**: Understands casual Indonesian questions
 
+## ⚡ Performance & Real-Time Features
+
+### Redis Cache System
+- **Token Blacklist**: Invalidated JWT tokens with automatic TTL expiration
+- **User Status Cache**: Online/offline/banned status (1 hour TTL)
+- **Performance Cache**: 
+  - User XP, Level, Island Health (30 minutes TTL)
+  - Total CO2 saved aggregation (30 minutes TTL)
+- **Cache-First Strategy**: All mission claims check Redis before database
+- **Automatic Invalidation**: Cache cleared on data updates for consistency
+- **Performance Gain**: <10ms cache hits vs ~50ms database queries
+
+### WebSocket Real-Time Updates
+- **User Rooms**: Individual rooms (`user_{userId}`) for targeted notifications
+- **Admin Room**: Broadcast channel (`admin_room`) for monitoring all users
+- **Events**:
+  - `user_status_changed` - Login/logout events with timestamp
+  - `account_banned` - Ban notification sent to user
+  - `account_unbanned` - Unban notification sent to user
+- **Admin Panel Integration**: Real-time user list updates without page refresh
+- **Connection Management**: Automatic reconnection with exponential backoff
+
+### Authentication & Security
+- **Dual JWT System**:
+  - Access Token: 30 minutes validity (for API requests)
+  - Refresh Token: 7 days validity (for token renewal)
+  - Admin Token: 24 hours validity (separate authentication)
+- **Token Rotation**: Refresh tokens can only be used once
+- **Blacklist Strategy**: Invalidated tokens stored in Redis until expiration
+- **Session Separation**: Complete isolation between admin and user sessions
+- **OAuth Integration**: Google login returns dual tokens matching regular authentication
+
 ## 📊 Dashboard Statistics
 
 - **Today's Impact**: Emission vs. Saved CO2 (real-time)
@@ -485,6 +559,7 @@ vercel --prod
 - Verify Google Client ID and Secret in `.env`
 - Check OAuth redirect URIs in Google Console
 - Ensure NextAuth is properly configured
+- Backend must return dual tokens: `{ accessToken, refreshToken, user }`
 - See `SETUP_GOOGLE_OAUTH.md` for setup guide
 
 **Badges not unlocking:**
@@ -496,6 +571,36 @@ vercel --prod
 - Users can only change username once every 30 days
 - Check `last_username_change` field in users table
 - Admin can manually reset cooldown if needed
+
+**Redis connection issues:**
+- Verify `REDIS_URL` is correct in server `.env`
+- Test connection with: `node test-redis.js` in server directory
+- Check Upstash console for connection logs
+- Ensure SSL/TLS is enabled (`rediss://` protocol)
+
+**WebSocket not connecting:**
+- Check browser console for Socket.io connection errors
+- Verify `NEXT_PUBLIC_API_URL` in client `.env.local`
+- WebSocket URL should be base URL without `/api` suffix
+- Check firewall settings (default port: 5000)
+
+**Admin panel not updating in real-time:**
+- Ensure admin has joined `admin_room` via Socket.io
+- Check server logs for WebSocket event emissions
+- Verify `io.to('admin_room').emit(...)` is called
+- Open browser console to see WebSocket connection status
+
+**401 Unauthorized errors:**
+- Check if access token has expired (30 min validity)
+- Try refreshing token via `/api/auth/refresh` endpoint
+- Verify JWT authentication middleware is working
+- Check `Authorization: Bearer {token}` header format
+
+**Cache showing stale data:**
+- Check Redis TTL settings (30 min for user data)
+- Force cache invalidation after updates
+- Verify `updateUserData()` clears cache properly
+- Monitor cache hits/misses in server logs
 
 ## 📚 Additional Documentation
 
@@ -552,16 +657,19 @@ See `server/config/scheduler.js` for cron job configurations.
 - **React Confetti** - Celebration effects
 - **Lucide React** - Icon library
 - **NextAuth.js** - Authentication library for OAuth
+- **Socket.io Client** - Real-time WebSocket connections
 - **html2canvas & jspdf** - Export functionality
 
 ### Backend
 - **Express.js** - Web framework
-- **MySQL2** - Database driver
-- **BCrypt** - Password hashing
-- **JSON Web Token (JWT)** - Authentication tokens
-- **Groq SDK** - AI integration
+- **MySQL2** - Database driver with promise support
+- **Redis (ioredis)** - In-memory cache via Upstash
+- **Socket.io** - WebSocket server for real-time updates
+- **BCrypt** - Password hashing (10 salt rounds)
+- **JSON Web Token (JWT)** - Dual token authentication
+- **Groq SDK** - AI integration (LLaMA 3.3 70B)
 - **Node-cron** - Task scheduling
-- **Nodemailer** - Email service
+- **Nodemailer** - Email service (SMTP)
 - **CORS** - Cross-origin resource sharing
 - **Dotenv** - Environment variables
 
