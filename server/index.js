@@ -201,6 +201,20 @@ app.get('/', (req, res) => {
     res.send('🚀 CarbonTrack Backend is Running!');
 });
 
+// ==============================================
+// 🙈 ERROR HANDLING (MUST BE LAST!)
+// ==============================================
+
+const { errorHandler, notFoundHandler } = require('./middleware/errorHandler');
+
+// Handle 404 - Not Found (for undefined routes)
+app.use(notFoundHandler);
+
+// Global error handler (catches all errors)
+app.use(errorHandler);
+
+console.log('🙈 Error handling middleware enabled');
+
 // const PORT = process.env.PORT || 5000;
 // app.listen(PORT, () => {
 //     console.log(`Server running on port ${PORT}`);
