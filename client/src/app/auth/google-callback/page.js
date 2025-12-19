@@ -1,31 +1,41 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
-import { useTheme } from '@/contexts/ThemeContext';
+import { setTokens } from '@/utils/auth';
 
 export default function GoogleCallbackPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
-  const { saveUserAuth } = useTheme();
+  const [processed, setProcessed] = useState(false);
 
   useEffect(() => {
+    // Prevent multiple processing
+    if (processed) return;
+
     if (status === 'authenticated' && session?.backendToken) {
-      // Save to localStorage dengan 2 tokens
-      saveUserAuth(
-        session.userData,
+      console.log('✅ Google auth successful, saving tokens...');
+      
+      // Save JWT tokens to localStorage
+      setTokens(
         session.backendToken.accessToken,
-        session.backendToken.refreshToken
+        session.backendToken.refreshToken,
+        session.userData
       );
       
+      setProcessed(true);
+      
       // Redirect to dashboard
-      router.push('/dashboard');
+      setTimeout(() => {
+        router.push('/dashboard');
+      }, 500);
     } else if (status === 'unauthenticated') {
-      // Failed authentication
+      console.error('❌ Google auth failed');
+      setProcessed(true);
       router.push('/login?error=google_auth_failed');
     }
-  }, [status, session, router, saveUserAuth]);
+  }, [status, session, router, processed]);
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50">

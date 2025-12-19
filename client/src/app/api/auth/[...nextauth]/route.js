@@ -26,8 +26,11 @@ const handler = NextAuth({
         const data = await response.json();
 
         if (response.ok) {
-          // Store backend token and user data
-          user.backendToken = data.token;
+          // Store backend dual JWT tokens and user data
+          user.backendToken = {
+            accessToken: data.accessToken,
+            refreshToken: data.refreshToken
+          };
           user.userData = data.user;
           return true;
         }
