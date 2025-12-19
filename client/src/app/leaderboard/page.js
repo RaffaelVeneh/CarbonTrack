@@ -3,8 +3,12 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import Sidebar from '@/components/Sidebar';
 import { Trophy, Crown, Medal, Search, TrendingUp, Award, Zap, Leaf, Star, Users, Filter, ChevronDown, Sparkles, Loader2 } from 'lucide-react';
+import useAuth from '@/hooks/useAuth';
 
 export default function LeaderboardPage() {
+  // 🔐 PROTECT THIS PAGE - Redirect to login if not authenticated
+  useAuth();
+  
   const [leaders, setLeaders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);

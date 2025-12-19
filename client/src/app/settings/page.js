@@ -7,8 +7,10 @@ import { useTheme } from '@/contexts/ThemeContext';
 import { getUserFromStorage } from '@/utils/userStorage';
 import { apiGet, apiPut } from '@/utils/auth';
 import { checkBannedStatus } from '@/utils/bannedCheck';
+import useAuth from '@/hooks/useAuth';
 
 export default function SettingsPage() {
+  useAuth(); // 🔐 Protect this page
   const { theme, toggleTheme } = useTheme();
   const [accountInfo, setAccountInfo] = useState(null);
   const [formData, setFormData] = useState({ username: '' });

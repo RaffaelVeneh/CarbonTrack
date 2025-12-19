@@ -11,6 +11,7 @@ import { useBadge } from '@/contexts/BadgeContext';
 import { getUserFromStorage } from '@/utils/userStorage';
 import { apiGet, apiPost } from '@/utils/auth';
 import { checkBannedStatus } from '@/utils/bannedCheck';
+import useAuth from '@/hooks/useAuth';
 
 // Lazy load heavy components
 const EcoPlant = lazy(() => import('@/components/EcoPlant'));

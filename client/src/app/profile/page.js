@@ -11,8 +11,10 @@ import {
 import { getUserFromStorage } from '@/utils/userStorage';
 import { apiGet } from '@/utils/auth';
 import { checkBannedStatus } from '@/utils/bannedCheck';
+import useAuth from '@/hooks/useAuth';
 
 export default function ProfilePage() {
+  useAuth(); // 🔐 Protect this page
   const [user, setUser] = useState(null);
   const [badges, setBadges] = useState([]); 
   const [stats, setStats] = useState({ totalLogs: 0, totalEmission: 0, totalSaved: 0 });

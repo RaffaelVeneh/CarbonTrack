@@ -8,6 +8,7 @@ import { useTheme } from '@/contexts/ThemeContext';
 import ActivityModal from '@/components/ActivityModal';
 import { getUserFromStorage } from '@/utils/userStorage';
 import { apiGet, apiPost } from '@/utils/auth';
+import useAuth from '@/hooks/useAuth';
 
 // Mission Detail Modal Component
 function MissionDetailModal({ mission, onClose, onNavigate }) {
@@ -282,6 +283,7 @@ const QUICK_SUGGESTIONS = [
 ];
 
 export default function AssistantPage() {
+  useAuth(); // 🔐 Protect this page
   const router = useRouter();
   const { theme, toggleTheme } = useTheme();
   const [input, setInput] = useState('');

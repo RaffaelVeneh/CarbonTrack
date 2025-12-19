@@ -10,15 +10,26 @@ const REFRESH_TOKEN_KEY = 'refreshToken';
 const USER_DATA_KEY = 'userData';
 
 /**
- * Store tokens in localStorage
+ * Store tokens in both localStorage AND cookies
+ * - localStorage: For client-side API calls
+ * - Cookies: For server-side middleware authentication check
  */
 export const setTokens = (accessToken, refreshToken, userData = null) => {
   if (typeof window !== 'undefined') {
+    // Store in localStorage (existing behavior)
     localStorage.setItem(ACCESS_TOKEN_KEY, accessToken);
     localStorage.setItem(REFRESH_TOKEN_KEY, refreshToken);
     if (userData) {
       localStorage.setItem(USER_DATA_KEY, JSON.stringify(userData));
     }
+    
+    // ALSO store in cookies for middleware
+    // Set expiry: accessToken = 30 min, refreshToken = 7 days
+    const accessExpiry = new Date(Date.now() + 30 * 60 * 1000); // 30 minutes
+    const refreshExpiry = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
+    
+    document.cookie = `token=${accessToken}; path=/; expires=${accessExpiry.toUTCString()}; SameSite=Lax`;
+    document.cookie = `refreshToken=${refreshToken}; path=/; expires=${refreshExpiry.toUTCString()}; SameSite=Lax`;
   }
 };
 
@@ -54,11 +65,11 @@ export const getUserData = () => {
 };
 
 /**
- * Clear all authentication data
+ * Clear all authentication data (localStorage AND cookies)
  */
 export const clearAuth = () => {
   if (typeof window !== 'undefined') {
-    // Clear new JWT tokens
+    // Clear new JWT tokens from localStorage
     localStorage.removeItem(ACCESS_TOKEN_KEY);
     localStorage.removeItem(REFRESH_TOKEN_KEY);
     localStorage.removeItem(USER_DATA_KEY);
@@ -67,14 +78,77 @@ export const clearAuth = () => {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
     localStorage.removeItem('userAuth');
+    
+    // ALSO clear cookies
+    document.cookie = 'token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 UTC; SameSite=Lax';
+    document.cookie = 'refreshToken=; path=/; expires=Thu, 01 Jan 1970 00:00:00 UTC; SameSite=Lax';
   }
 };
 
 /**
- * Check if user is authenticated (has valid tokens)
+ * Decode JWT token (without verification - client-side safe)
+ * @param {string} token - JWT token
+ * @returns {object|null} Decoded payload or null if invalid
+ */
+const decodeJWT = (token) => {
+  try {
+    if (!token) return null;
+    const parts = token.split('.');
+    if (parts.length !== 3) return null;
+    
+    // Decode payload (middle part)
+    const payload = JSON.parse(atob(parts[1]));
+    return payload;
+  } catch (error) {
+    console.error('JWT decode error:', error);
+    return null;
+  }
+};
+
+/**
+ * Check if JWT token is expired
+ * @param {string} token - JWT token
+ * @returns {boolean} True if expired
+ */
+const isTokenExpired = (token) => {
+  const payload = decodeJWT(token);
+  if (!payload || !payload.exp) return true;
+  
+  // Check if token expired (exp is in seconds, Date.now() is in milliseconds)
+  const currentTime = Math.floor(Date.now() / 1000);
+  return payload.exp < currentTime;
+};
+
+/**
+ * Check if user is authenticated (has valid, non-expired tokens)
+ * @returns {boolean} True if authenticated with valid token
  */
 export const isAuthenticated = () => {
-  return !!(getAccessToken() && getRefreshToken());
+  const accessToken = getAccessToken();
+  const refreshToken = getRefreshToken();
+  
+  // No tokens = not authenticated
+  if (!accessToken || !refreshToken) {
+    return false;
+  }
+  
+  // Check if access token expired
+  if (isTokenExpired(accessToken)) {
+    console.log('⚠️ Access token expired');
+    // If access token expired but refresh token valid, still considered authenticated
+    // (will be refreshed automatically by API calls)
+    if (!isTokenExpired(refreshToken)) {
+      console.log('✅ Refresh token still valid, user authenticated');
+      return true;
+    }
+    
+    // Both tokens expired - clear auth data
+    console.log('❌ Both tokens expired, clearing auth data');
+    clearAuth();
+    return false;
+  }
+  
+  return true;
 };
 
 /**

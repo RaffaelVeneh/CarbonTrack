@@ -98,6 +98,7 @@ function AuthContent() {
 // ==========================================
 function LoginForm({ onSwitch }) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [formData, setFormData] = useState({ email: '', password: '' });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -117,7 +118,10 @@ function LoginForm({ onSwitch }) {
         // Store dual JWT tokens
         setTokens(data.accessToken, data.refreshToken, data.user);
         console.log('✅ Login successful with dual JWT tokens');
-        router.push('/dashboard');
+        
+        // Redirect to intended page or dashboard
+        const from = searchParams.get('from') || '/dashboard';
+        router.push(from);
       } else {
         // If email not verified, redirect to register page for verification
         if (data.requiresVerification) {

@@ -10,8 +10,10 @@ import {
 import { getUserFromStorage } from '@/utils/userStorage';
 import { apiGet } from '@/utils/auth';
 import { checkBannedStatus } from '@/utils/bannedCheck';
+import useAuth from '@/hooks/useAuth';
 
 export default function HistoryPage() {
+  useAuth(); // 🔐 Protect this page
   const [logs, setLogs] = useState([]);
   const [filter, setFilter] = useState('daily');
   const [loading, setLoading] = useState(false);
