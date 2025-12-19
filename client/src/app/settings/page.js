@@ -611,11 +611,11 @@ export default function SettingsPage() {
                   <div className="bg-gradient-to-br from-emerald-50 to-teal-50 dark:from-emerald-900/20 dark:to-teal-900/20 p-4 rounded-xl border border-emerald-200 dark:border-emerald-700">
                     <p className="text-xs font-semibold text-gray-600 dark:text-gray-400 mb-2">Hubungi Kami</p>
                     <a 
-                      href="mailto:support@carbontrack.com"
+                      href="mailto:carbontrackappservice.2025@gmail.com"
                       className="text-emerald-600 dark:text-emerald-400 font-bold hover:underline text-sm flex items-center justify-center gap-2"
                     >
                       <Mail size={16}/>
-                      support@carbontrack.com
+                      carbontrackappservice.2025@gmail.com
                     </a>
                   </div>
 
