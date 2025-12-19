@@ -13,4 +13,8 @@ router.get('/users', verifyToken, isAdmin, adminController.getAllUsers);
 router.get('/users/:userId', verifyToken, isAdmin, adminController.getUserDetails);
 router.put('/change-password', verifyToken, isAdmin, adminController.changePassword);
 
+// User management routes (with status)
+router.get('/users-status', verifyToken, isAdmin, adminController.getUsersWithStatus);
+router.put('/users/:userId/status', verifyToken, isAdmin, adminController.updateUserStatus);
+
 module.exports = router;

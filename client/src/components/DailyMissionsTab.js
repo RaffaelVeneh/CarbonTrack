@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { Clock, Gift, Zap, Target, Calendar } from 'lucide-react';
+import { apiGet, apiPost } from '@/utils/auth';
 
 export default function DailyMissionsTab({ userId, API_URL, onActivitySelect, onClaimSuccess, refreshKey }) {
     const [dailyMissions, setDailyMissions] = useState([]);
@@ -13,8 +14,7 @@ export default function DailyMissionsTab({ userId, API_URL, onActivitySelect, on
     const fetchDailyMissions = useCallback(async () => {
         setIsLoading(true);
         try {
-            const res = await fetch(`${API_URL}/missions/daily/${userId}`);
-            const data = await res.json();
+            const data = await apiGet(`/missions/daily/${userId}`);
             setDailyMissions(data.missions || []);
             setSecondsRemaining(data.secondsUntilReset || 0);
         } catch (err) {
@@ -57,14 +57,12 @@ export default function DailyMissionsTab({ userId, API_URL, onActivitySelect, on
     // Handle claim daily mission
     const handleClaimDaily = async (dailyMissionId) => {
         try {
-            const res = await fetch(`${API_URL}/missions/daily/claim`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ userId, dailyMissionId }),
+            const result = await apiPost('/missions/daily/claim', {
+                userId,
+                dailyMissionId
             });
-            const result = await res.json();
 
-            if (res.ok) {
+            if (result) {
                 // Update UI optimistically
                 setDailyMissions(prev => prev.map(m =>
                     m.daily_mission_id === dailyMissionId ? { ...m, status: 'claimed' } : m

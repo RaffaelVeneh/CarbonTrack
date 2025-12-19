@@ -129,11 +129,28 @@ export default function AdminDashboard() {
             {[
               { id: 'overview', label: 'Overview', icon: BarChart3 },
               { id: 'users', label: 'Users', icon: Users },
+              { id: 'user-control', label: 'User Control', icon: Shield, link: '/admin/users' },
               { id: 'activities', label: 'Activities', icon: Activity },
               { id: 'missions', label: 'Missions', icon: Target },
               { id: 'settings', label: 'Settings', icon: Settings }
             ].map((item) => {
               const Icon = item.icon;
+              
+              // If item has link, use router.push instead of setActiveTab
+              if (item.link) {
+                return (
+                  <button
+                    key={item.id}
+                    onClick={() => router.push(item.link)}
+                    className="w-full flex items-center gap-3 px-4 py-3 text-gray-300 hover:bg-white/10 hover:text-white rounded-xl transition-all"
+                  >
+                    <Icon size={20} />
+                    {sidebarOpen && <span className="font-medium">{item.label}</span>}
+                    {sidebarOpen && <ChevronRight size={16} className="ml-auto" />}
+                  </button>
+                );
+              }
+              
               return (
                 <button
                   key={item.id}

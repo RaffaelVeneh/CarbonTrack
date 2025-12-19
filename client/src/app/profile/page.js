@@ -9,6 +9,8 @@ import {
   Activity, BarChart3, Flame, Crown
 } from 'lucide-react';
 import { getUserFromStorage } from '@/utils/userStorage';
+import { apiGet } from '@/utils/auth';
+import { checkBannedStatus } from '@/utils/bannedCheck';
 
 export default function ProfilePage() {
   const [user, setUser] = useState(null);
@@ -20,6 +22,7 @@ export default function ProfilePage() {
   const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
 
   useEffect(() => {
+    if (checkBannedStatus()) return;
     // 1. Ambil data awal dari localStorage (support JWT)
     const userData = getUserFromStorage();
     if (userData) {
@@ -34,26 +37,23 @@ export default function ProfilePage() {
         setLoading(true);
         
         // A. Ambil Semua Badge
-        const resBadges = await fetch(`${API_URL}/badges?userId=${userId}`);
-        const dataBadges = await resBadges.json();
+        const dataBadges = await apiGet(`/badges?userId=${userId}`);
         
         if (dataBadges.badges) {
             setBadges(dataBadges.badges);
         }
 
         // B. Ambil Statistik Summary
-        const resStats = await fetch(`${API_URL}/logs/summary/${userId}`);
-        const dataStats = await resStats.json();
-        if (resStats.ok) {
+        const dataStats = await apiGet(`/logs/summary/${userId}`);
+        if (dataStats) {
             setStats(dataStats);
         }
 
         // C. Ambil Detail User TERBARU (Level, XP, Health, Rank)
         // --- PERBAIKAN DI SINI ---
-        const resUser = await fetch(`${API_URL}/users/profile/${userId}`);
-        const dataUser = await resUser.json();
+        const dataUser = await apiGet(`/users/profile/${userId}`);
 
-        if (resUser.ok && dataUser.user) {
+        if (dataUser && dataUser.user) {
             // Gabungkan data lama dengan data baru
             const updatedUser = {
                 ...JSON.parse(localStorage.getItem('user')), // Ambil base data

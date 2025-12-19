@@ -1,4 +1,5 @@
 const db = require('../config/db');
+const { getUserData, updateUserData, invalidateUserData } = require('../services/tokenBlacklist');
 
 // Helper functions
 function getTodayDate() {
@@ -229,19 +230,23 @@ const claimDailyMission = async (req, res) => {
                 total_health_earned = total_health_earned + VALUES(total_health_earned)
         `, [userId, healthReward, healthReward]);
 
-        // 3. Update XP user (hitung level up jika perlu)
-        const [users] = await db.execute(`SELECT total_xp, current_level FROM users WHERE id = ?`, [userId]);
-        const user = users[0];
-        console.log(`📊 User before claim: XP=${user.total_xp}, Level=${user.current_level}`);
+        // 3. Update XP user (hitung level up jika perlu) - Using Redis Cache
+        const userData = await getUserData(userId);
+        console.log(`📊 User before claim: XP=${userData.total_xp}, Level=${userData.current_level}`);
         
-        const newXP = user.total_xp + xpReward;
+        const newXP = userData.total_xp + xpReward;
         const xpPerLevel = 100;
         let newLevel = Math.floor(newXP / xpPerLevel) + 1;
-        const leveledUp = newLevel > user.current_level;
+        const leveledUp = newLevel > userData.current_level;
 
-        console.log(`💫 Updating: ${user.total_xp} + ${xpReward} = ${newXP} XP | Level ${user.current_level} -> ${newLevel}`);
+        console.log(`💫 Updating: ${userData.total_xp} + ${xpReward} = ${newXP} XP | Level ${userData.current_level} -> ${newLevel}`);
         
-        await db.execute(`UPDATE users SET total_xp = ?, current_level = ? WHERE id = ?`, [newXP, newLevel, userId]);
+        // Update both DB and Redis cache
+        await updateUserData(userId, {
+            total_xp: newXP,
+            current_level: newLevel,
+            island_health: userData.island_health
+        });
 
         // 4. Get updated data
         const [ph] = await db.execute(`SELECT plant_health, total_health_earned FROM user_plant_health WHERE user_id = ?`, [userId]);

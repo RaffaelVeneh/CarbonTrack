@@ -4,6 +4,7 @@ const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const emailService = require('../services/emailService');
 const db = require('../config/db');
+const { addToBlacklist, updateUserStatus } = require('../services/tokenBlacklist');
 
 // Helper function to generate dual JWT tokens
 const generateTokens = (userId, userData = {}) => {
@@ -99,10 +100,31 @@ exports.googleAuth = async (req, res) => {
 
         // Store refresh token in database
         const refreshExpires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
+        
+        // Only update status to 'online' if not banned
+        const newStatus = user.status === 'banned' ? 'banned' : 'online';
         await db.execute(
-            'UPDATE users SET refresh_token = ?, refresh_token_expires = ? WHERE id = ?',
-            [refreshToken, refreshExpires, user.id]
+            'UPDATE users SET refresh_token = ?, refresh_token_expires = ?, status = ?, last_login = NOW() WHERE id = ?',
+            [refreshToken, refreshExpires, newStatus, user.id]
         );
+        
+        // Update user status in Redis cache (only if not banned)
+        if (user.status !== 'banned') {
+            await updateUserStatus(user.id, 'online');
+        }
+
+        // Emit real-time event to admin panel
+        const io = req.app.get('io');
+        if (io && newStatus === 'online') {
+            io.to('admin_room').emit('user_status_changed', {
+                userId: user.id,
+                username: user.username,
+                status: 'online',
+                lastLogin: new Date().toISOString(),
+                timestamp: new Date().toISOString()
+            });
+            console.log(`📡 User login event sent to admin panel: ${user.username}`);
+        }
 
         res.json({
             message: 'Login dengan Google berhasil',
@@ -272,12 +294,33 @@ exports.login = async (req, res) => {
             island_health: user.island_health
         });
 
-        // Store refresh token in database
+        // Store refresh token in database and update last_login
         const refreshExpires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
+        
+        // Only update status to 'online' if not banned
+        const newStatus = user.status === 'banned' ? 'banned' : 'online';
         await db.execute(
-            'UPDATE users SET refresh_token = ?, refresh_token_expires = ? WHERE id = ?',
-            [refreshToken, refreshExpires, user.id]
+            'UPDATE users SET refresh_token = ?, refresh_token_expires = ?, status = ?, last_login = NOW() WHERE id = ?',
+            [refreshToken, refreshExpires, newStatus, user.id]
         );
+
+        // Update user status to 'online' in Redis cache (only if not banned)
+        if (user.status !== 'banned') {
+            await updateUserStatus(user.id, 'online');
+        }
+
+        // Emit real-time event to admin panel
+        const io = req.app.get('io');
+        if (io && newStatus === 'online') {
+            io.to('admin_room').emit('user_status_changed', {
+                userId: user.id,
+                username: user.username,
+                status: 'online',
+                lastLogin: new Date().toISOString(),
+                timestamp: new Date().toISOString()
+            });
+            console.log(`📡 User login event sent to admin panel: ${user.username}`);
+        }
 
         res.json({
             message: 'Login berhasil',
@@ -576,11 +619,43 @@ exports.logout = async (req, res) => {
         try {
             const decoded = jwt.verify(refreshToken, process.env.JWT_SECRET);
             
-            // Clear refresh token from database
-            await db.execute(
-                'UPDATE users SET refresh_token = NULL, refresh_token_expires = NULL WHERE id = ?',
+            // Add refresh token to blacklist (auto-expires in 7 days)
+            await addToBlacklist(refreshToken, 7 * 24 * 60 * 60);
+            
+            // Get current user status
+            const [currentUser] = await db.execute(
+                'SELECT status FROM users WHERE id = ?',
                 [decoded.id]
             );
+            
+            // Only set to offline if not banned
+            const newStatus = (currentUser[0] && currentUser[0].status === 'banned') ? 'banned' : 'offline';
+            
+            // Clear refresh token from database and update status (preserve banned status)
+            await db.execute(
+                'UPDATE users SET refresh_token = NULL, refresh_token_expires = NULL, status = ? WHERE id = ?',
+                [newStatus, decoded.id]
+            );
+
+            // Update user status in Redis cache (preserve banned status)
+            await updateUserStatus(decoded.id, newStatus);
+            
+            // Emit real-time event to admin panel
+            const io = req.app.get('io');
+            if (io && newStatus === 'offline') {
+                const [userInfo] = await db.execute('SELECT username FROM users WHERE id = ?', [decoded.id]);
+                if (userInfo.length > 0) {
+                    io.to('admin_room').emit('user_status_changed', {
+                        userId: decoded.id,
+                        username: userInfo[0].username,
+                        status: 'offline',
+                        timestamp: new Date().toISOString()
+                    });
+                    console.log(`📡 User logout event sent to admin panel: ${userInfo[0].username}`);
+                }
+            }
+            
+            console.log(`✅ User ${decoded.id} logged out successfully`);
         } catch (error) {
             // Even if token is invalid, still return success
             console.log('Token verification failed during logout:', error.message);

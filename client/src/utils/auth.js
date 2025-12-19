@@ -170,9 +170,43 @@ export const fetchWithAuth = async (url, options = {}) => {
   // Make first request
   let response = await fetch(url, options);
 
+  // Check for various error conditions
+  if (response.status === 403) {
+    const errorData = await response.json();
+    
+    // ⚡ CRITICAL: Account banned - immediate redirect (skip for admin routes)
+    if (errorData.accountBanned) {
+      console.error('🚫 Account has been banned');
+      if (typeof window !== 'undefined' && !window.location.pathname.startsWith('/admin')) {
+        window.location.href = '/banned';
+      }
+      throw new Error('Account banned');
+    }
+  }
+
   // If 401 and token expired, try to refresh
   if (response.status === 401) {
     const errorData = await response.json();
+    
+    // Check if account is banned (can also come as 401) (skip for admin routes)
+    if (errorData.accountBanned) {
+      console.error('🚫 Account has been banned');
+      if (typeof window !== 'undefined' && !window.location.pathname.startsWith('/admin')) {
+        window.location.href = '/banned';
+      }
+      throw new Error('Account banned');
+    }
+    
+    // Check if status is offline (force re-login)
+    if (errorData.statusOffline) {
+      console.error('⚠️ Session expired - status is offline');
+      clearAuth();
+      if (typeof window !== 'undefined') {
+        alert('Your session has expired. Please login again.');
+        window.location.href = '/login';
+      }
+      throw new Error('Session expired');
+    }
     
     if (errorData.tokenExpired || errorData.requireRefresh) {
       console.log('🔄 Access token expired, attempting refresh...');
@@ -184,6 +218,18 @@ export const fetchWithAuth = async (url, options = {}) => {
         // Retry request with new token
         options.headers['Authorization'] = `Bearer ${newAccessToken}`;
         response = await fetch(url, options);
+        
+        // Re-check for banned status after refresh (skip for admin routes)
+        if (response.status === 403) {
+          const retryError = await response.json();
+          if (retryError.accountBanned) {
+            console.error('🚫 Account has been banned');
+            if (typeof window !== 'undefined' && !window.location.pathname.startsWith('/admin')) {
+              window.location.href = '/banned';
+            }
+            throw new Error('Account banned');
+          }
+        }
       } else {
         // Refresh failed, redirect to login
         console.error('❌ Token refresh failed, redirecting to login');
@@ -192,8 +238,8 @@ export const fetchWithAuth = async (url, options = {}) => {
         }
         throw new Error('Authentication failed');
       }
-    } else if (errorData.requireAuth) {
-      // No valid auth at all, redirect to login
+    } else if (errorData.requireAuth || errorData.tokenRevoked) {
+      // No valid auth at all or token revoked, redirect to login
       if (typeof window !== 'undefined') {
         window.location.href = '/login';
       }

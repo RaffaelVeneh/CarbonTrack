@@ -9,6 +9,8 @@ import WeeklyMissionsTab from '@/components/WeeklyMissionsTab';
 import { Target, CheckCircle, Lock, Zap, PartyPopper, TrendingUp, ArrowRight } from 'lucide-react';
 import { useBadge } from '@/contexts/BadgeContext';
 import { getUserFromStorage } from '@/utils/userStorage';
+import { apiGet, apiPost } from '@/utils/auth';
+import { checkBannedStatus } from '@/utils/bannedCheck';
 
 // Lazy load heavy components
 const EcoPlant = lazy(() => import('@/components/EcoPlant'));
@@ -39,10 +41,7 @@ export default function MissionsPage() {
   const fetchMissions = useCallback(async (userId) => {
     setIsLoading(true);
     try {
-      const res = await fetch(`${API_URL}/missions/${userId}`, {
-        headers: { 'Cache-Control': 'max-age=300' } // Cache 5 menit
-      });
-      const data = await res.json();
+      const data = await apiGet(`/missions/${userId}`);
       
       if (data.missions) setMissions(data.missions);
       if (data.levelInfo) setLevelInfo(data.levelInfo);
@@ -51,21 +50,25 @@ export default function MissionsPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [API_URL]);
+  }, []);
 
   // Fetch plant health
   const fetchPlantHealth = useCallback(async (userId) => {
     try {
-      const res = await fetch(`${API_URL}/missions/daily/plant-health/${userId}`);
-      const data = await res.json();
+      const data = await apiGet(`/missions/daily/plant-health/${userId}`);
       console.log('🌻 Fetched plant health:', data);
       setPlantHealth(data.plant_health || 0);
     } catch (err) {
       console.error('Fetch plant health error:', err);
     }
-  }, [API_URL]);
+  }, []);
 
   useEffect(() => {
+    // ⚡ CRITICAL: Check banned status first
+    if (checkBannedStatus()) {
+      return; // Will redirect to /banned
+    }
+
     const userData = getUserFromStorage();
     setUser(userData);
     if (userData) {
@@ -89,14 +92,14 @@ export default function MissionsPage() {
     // Prevent duplicate claims
     setIsLoading(true);
     try {
-        const res = await fetch(`${API_URL}/missions/claim`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ userId: user.id, missionId }),
+        const { apiPost } = await import('@/utils/auth');
+        
+        const result = await apiPost('/missions/claim', {
+            userId: user.id,
+            missionId
         });
-        const result = await res.json();
 
-        if (res.ok) {
+        if (result) {
             // OPTIMISTIC UI UPDATE - Update state dulu tanpa fetch ulang
             const updatedMissions = missions.map(m => 
                 m.id === missionId ? { ...m, is_claimed: true, is_completable: false } : m

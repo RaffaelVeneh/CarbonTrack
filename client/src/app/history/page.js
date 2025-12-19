@@ -8,6 +8,8 @@ import {
   CheckCircle, AlertCircle, ChevronDown, ChevronUp
 } from 'lucide-react';
 import { getUserFromStorage } from '@/utils/userStorage';
+import { apiGet } from '@/utils/auth';
+import { checkBannedStatus } from '@/utils/bannedCheck';
 
 export default function HistoryPage() {
   const [logs, setLogs] = useState([]);
@@ -24,6 +26,7 @@ export default function HistoryPage() {
   const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
 
   useEffect(() => {
+    if (checkBannedStatus()) return;
     const userData = getUserFromStorage();
     setUser(userData);
   }, []);
@@ -37,11 +40,11 @@ export default function HistoryPage() {
   const fetchLogs = async () => {
     setLoading(true);
     try {
-      const res = await fetch(`${API_URL}/logs/history/${user.id}?filter=${filter}`);
-      const data = await res.json();
-      setLogs(data);
+      const data = await apiGet(`/logs/history/${user.id}?filter=${filter}`);
+      setLogs(Array.isArray(data) ? data : []);
     } catch (err) {
       console.error("Gagal ambil history", err);
+      setLogs([]);
     } finally {
       setLoading(false);
     }

@@ -5,7 +5,8 @@ import { useRouter } from 'next/navigation';
 import Sidebar from '@/components/Sidebar';
 import ActivityModal from '@/components/ActivityModal';
 import Lottie from 'lottie-react';
-import { apiGet } from '@/utils/auth'; 
+import { apiGet } from '@/utils/auth';
+import { checkBannedStatus } from '@/utils/bannedCheck'; 
 
 // Import Animasi
 import healthyAnim from '@/assets/lottie/healthy.json';
@@ -185,6 +186,11 @@ export default function Dashboard() {
 
   // Load Awal
   useEffect(() => {
+    // ⚡ CRITICAL: Check banned status first before anything else
+    if (checkBannedStatus()) {
+      return; // Will redirect to /banned
+    }
+
     // Support both new JWT system and legacy token system
     const newAccessToken = localStorage.getItem('accessToken');
     const newUserData = localStorage.getItem('userData');

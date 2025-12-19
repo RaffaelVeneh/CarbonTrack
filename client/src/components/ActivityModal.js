@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { X, Save, CheckCircle, Leaf, Flame, Search } from 'lucide-react';
 import { useBadge } from '@/contexts/BadgeContext';
+import { apiGet } from '@/utils/auth';
 
 export default function ActivityModal({ isOpen, onClose, userId, onRefresh, initialActivityId, onUpdateStreak, onActivityLogged }) {
   const [activities, setActivities] = useState([]);
@@ -16,18 +17,18 @@ export default function ActivityModal({ isOpen, onClose, userId, onRefresh, init
   const [showDropdown, setShowDropdown] = useState(false); 
 
   const { checkBadges } = useBadge(); 
-  const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
 
   useEffect(() => {
     if (isOpen && activities.length === 0) {
-      // Only fetch if activities not loaded yet (cache in state)
-      fetch(`${API_URL}/logs/activities`) 
-        .then(res => res.json())
+      // Only fetch if activities not loaded yet (cache in state) - Using JWT
+      apiGet('/logs/activities')
         .then(data => {
-            setActivities(data);
+            // Ensure data is array
+            const activitiesData = Array.isArray(data) ? data : [];
+            setActivities(activitiesData);
             if (initialActivityId) {
                 const targetId = parseInt(initialActivityId);
-                const targetActivity = data.find(act => act.id === targetId);
+                const targetActivity = activitiesData.find(act => act.id === targetId);
                 setSelectedActivity(targetId);
                 if (targetActivity?.impact_type === 'positive') {
                     setMode('saving');
@@ -43,7 +44,10 @@ export default function ActivityModal({ isOpen, onClose, userId, onRefresh, init
                 setSearchQuery('');
             }
         })
-        .catch(err => console.error("Gagal load aktivitas:", err));
+        .catch(err => {
+          console.error("Gagal load aktivitas:", err);
+          setActivities([]); // Set empty array on error
+        });
     } else if (isOpen && initialActivityId) {
       // If activities already loaded, just set the initial activity
       const targetId = parseInt(initialActivityId);
@@ -58,7 +62,7 @@ export default function ActivityModal({ isOpen, onClose, userId, onRefresh, init
         setSearchQuery(targetActivity.activity_name);
       }
     }
-  }, [isOpen, API_URL, initialActivityId, activities]);
+  }, [isOpen, initialActivityId, activities]);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -135,20 +139,18 @@ export default function ActivityModal({ isOpen, onClose, userId, onRefresh, init
     setLoading(true);
 
     try {
-      const res = await fetch(`${API_URL}/logs`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          user_id: userId,
-          activity_id: selectedActivity,
-          input_value: inputValue,
-          date: date
-        })
+      // Import apiPost dynamically
+      const { apiPost } = await import('@/utils/auth');
+      
+      const result = await apiPost('/logs', {
+        user_id: userId,
+        activity_id: selectedActivity,
+        input_value: inputValue,
+        date: date
       });
 
-      const result = await res.json(); 
-
-      if (res.ok) {
+      // apiPost already handles response, no need to check res.ok
+      if (result) {
         if (result.newStreak !== undefined && onUpdateStreak) {
             onUpdateStreak(result.newStreak); 
         }
@@ -180,13 +182,10 @@ export default function ActivityModal({ isOpen, onClose, userId, onRefresh, init
             co2: result.co2Impact || 0
           });
         }
-      } else {
-        // Tampilkan pesan error dari backend jika ada
-        alert('Gagal menyimpan: ' + (result.message || 'Terjadi kesalahan'));
       }
     } catch (error) {
       console.error(error);
-      alert('Terjadi kesalahan koneksi');
+      alert('Terjadi kesalahan: ' + (error.message || 'Koneksi gagal'));
     } finally {
       setLoading(false);
     }

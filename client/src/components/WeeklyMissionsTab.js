@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { Clock, Gift, Zap, Target, CalendarRange } from 'lucide-react';
+import { apiGet, apiPost } from '@/utils/auth';
 
 export default function WeeklyMissionsTab({ userId, API_URL, onActivitySelect, onClaimSuccess, refreshKey }) {
     const [weeklyMissions, setWeeklyMissions] = useState([]);
@@ -13,8 +14,7 @@ export default function WeeklyMissionsTab({ userId, API_URL, onActivitySelect, o
     const fetchWeeklyMissions = useCallback(async () => {
         setIsLoading(true);
         try {
-            const res = await fetch(`${API_URL}/missions/weekly/${userId}`);
-            const data = await res.json();
+            const data = await apiGet(`/missions/weekly/${userId}`);
             setWeeklyMissions(data.missions || []);
             setSecondsRemaining(data.secondsUntilReset || 0);
         } catch (err) {
@@ -58,14 +58,12 @@ export default function WeeklyMissionsTab({ userId, API_URL, onActivitySelect, o
     // Handle claim weekly mission
     const handleClaimWeekly = async (weeklyMissionId) => {
         try {
-            const res = await fetch(`${API_URL}/missions/weekly/claim`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ userId, weeklyMissionId }),
+            const result = await apiPost('/missions/weekly/claim', {
+                userId,
+                weeklyMissionId
             });
-            const result = await res.json();
 
-            if (res.ok) {
+            if (result) {
                 // Update UI optimistically
                 setWeeklyMissions(prev => prev.map(m =>
                     m.weekly_mission_id === weeklyMissionId ? { ...m, status: 'claimed' } : m

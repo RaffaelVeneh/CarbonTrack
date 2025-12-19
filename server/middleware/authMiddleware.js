@@ -1,4 +1,5 @@
 const jwt = require('jsonwebtoken');
+const { isBlacklisted, getUserStatus } = require('../services/tokenBlacklist');
 
 // Middleware to verify JWT token for ADMIN
 const verifyToken = (req, res, next) => {
@@ -50,7 +51,7 @@ const verifyToken = (req, res, next) => {
 };
 
 // Middleware to verify JWT token for REGULAR USERS (Access Token)
-const verifyUserToken = (req, res, next) => {
+const verifyUserToken = async (req, res, next) => {
     try {
         // Get token from Authorization header
         const authHeader = req.headers['authorization'];
@@ -74,6 +75,16 @@ const verifyUserToken = (req, res, next) => {
             });
         }
 
+        // Check if token is blacklisted (for refresh tokens during logout)
+        const blacklisted = await isBlacklisted(token);
+        if (blacklisted) {
+            return res.status(401).json({ 
+                message: 'Token has been revoked. Please login again.',
+                requireAuth: true,
+                tokenRevoked: true
+            });
+        }
+
         // Verify token
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
         
@@ -83,10 +94,39 @@ const verifyUserToken = (req, res, next) => {
                 message: 'Invalid token type. Access token required.' 
             });
         }
+
+        // ⚡ REAL-TIME BAN ENFORCEMENT - Check user status in Redis
+        const userStatus = await getUserStatus(decoded.id);
+        
+        if (userStatus === 'banned') {
+            return res.status(403).json({ 
+                message: 'Your account has been banned. Please contact support.',
+                accountBanned: true,
+                requireAuth: true
+            });
+        }
+
+        if (userStatus === 'offline') {
+            // User has valid token but status is offline
+            // This means user was force-logged out or unbanned - require re-login
+            console.warn(`⚠️ User ${decoded.id} has valid token but status is offline - forcing re-authentication`);
+            return res.status(401).json({ 
+                message: 'Your session has expired. Please login again.',
+                requireAuth: true,
+                statusOffline: true
+            });
+        }
+        
+        if (!userStatus) {
+            // User status not found in Redis
+            // This can happen if Redis is down - allow request but log warning
+            console.warn(`⚠️ User ${decoded.id} status not found in Redis (cache miss)`);
+        }
         
         // Attach decoded user info to request
         req.user = decoded;
         req.userId = decoded.id;
+        req.userStatus = userStatus;
         
         next();
     } catch (error) {

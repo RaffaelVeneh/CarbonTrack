@@ -350,4 +350,173 @@ exports.changePassword = async (req, res) => {
     }
 };
 
+// Get users with status for user management (progressive loading)
+exports.getUsersWithStatus = async (req, res) => {
+    try {
+        const limit = parseInt(req.query.limit) || 10;
+        const offset = parseInt(req.query.offset) || 0;
+        const search = req.query.search || '';
+        const statusFilter = req.query.status || ''; // online, offline, banned
+
+        // Build query conditions
+        let conditions = [];
+        let params = [];
+
+        if (search) {
+            conditions.push('(username LIKE ? OR email LIKE ?)');
+            params.push(`%${search}%`, `%${search}%`);
+        }
+
+        if (statusFilter) {
+            conditions.push('status = ?');
+            params.push(statusFilter);
+        }
+
+        const whereClause = conditions.length > 0 ? 'WHERE ' + conditions.join(' AND ') : '';
+
+        // Get total count
+        const [countResult] = await db.execute(
+            `SELECT COUNT(*) as total FROM users ${whereClause}`,
+            params
+        );
+        const total = countResult[0].total;
+
+        // Get paginated users with status
+        // Note: Using template literals for LIMIT/OFFSET as TiDB has issues with prepared statements for these
+        const [users] = await db.execute(
+            `SELECT 
+                id, 
+                username, 
+                email, 
+                current_level, 
+                total_xp, 
+                island_health,
+                status,
+                email_verified,
+                created_at,
+                last_login
+             FROM users 
+             ${whereClause}
+             ORDER BY 
+                CASE status
+                    WHEN 'online' THEN 1
+                    WHEN 'idle' THEN 2
+                    WHEN 'offline' THEN 3
+                    WHEN 'banned' THEN 4
+                END,
+                last_login DESC
+             LIMIT ${limit} OFFSET ${offset}`,
+            params
+        );
+
+        res.json({
+            users,
+            pagination: {
+                limit,
+                offset,
+                total,
+                hasMore: offset + limit < total
+            }
+        });
+    } catch (error) {
+        console.error('Get users with status error:', error);
+        res.status(500).json({ 
+            message: 'Gagal mengambil data users',
+            error: error.message 
+        });
+    }
+};
+
+// Update user status (ban/unban/online/offline)
+exports.updateUserStatus = async (req, res) => {
+    try {
+        const { userId } = req.params;
+        const { status } = req.body;
+
+        // Validate status
+        const validStatuses = ['online', 'idle', 'offline', 'banned'];
+        if (!validStatuses.includes(status)) {
+            return res.status(400).json({ 
+                message: 'Status tidak valid. Gunakan: online, idle, offline, atau banned' 
+            });
+        }
+
+        // Check if user exists
+        const [users] = await db.execute(
+            'SELECT id, username, status FROM users WHERE id = ?',
+            [userId]
+        );
+
+        if (users.length === 0) {
+            return res.status(404).json({ 
+                message: 'User tidak ditemukan' 
+            });
+        }
+
+        const oldStatus = users[0].status;
+
+        // If unbanning user (banned → non-banned), force status to 'online'
+        const finalStatus = (oldStatus === 'banned' && status === 'offline') ? 'online' : status;
+
+        // Update status in database
+        await db.execute(
+            'UPDATE users SET status = ? WHERE id = ?',
+            [finalStatus, userId]
+        );
+
+        // Update Redis cache
+        const { updateUserStatus: updateRedisStatus, invalidateUserStatus } = require('../services/tokenBlacklist');
+        await updateRedisStatus(userId, finalStatus);
+
+        // Emit real-time event to user
+        const io = req.app.get('io');
+        if (io) {
+            if (finalStatus === 'banned') {
+                // Ban notification to user
+                io.to(`user_${userId}`).emit('account_banned', {
+                    message: 'Your account has been banned',
+                    timestamp: new Date().toISOString(),
+                    status: 'banned'
+                });
+                console.log(`🚨 Ban notification sent to user ${userId} via WebSocket`);
+            } else if (oldStatus === 'banned' && finalStatus !== 'banned') {
+                // Unban notification to user
+                io.to(`user_${userId}`).emit('account_unbanned', {
+                    message: 'Your account has been unbanned',
+                    timestamp: new Date().toISOString(),
+                    status: finalStatus
+                });
+                console.log(`✅ Unban notification sent to user ${userId} via WebSocket (${oldStatus} → ${finalStatus})`);
+            }
+            
+            // Emit status change to admin panel (for all status changes)
+            io.to('admin_room').emit('user_status_changed', {
+                userId: userId,
+                username: users[0].username,
+                status: finalStatus,
+                timestamp: new Date().toISOString()
+            });
+            console.log(`📡 Status change sent to admin panel: ${users[0].username} → ${finalStatus}`);
+        }
+
+        console.log(`✅ Admin updated user ${userId} status: ${oldStatus} → ${finalStatus}`);
+
+        res.json({ 
+            message: `Status user berhasil diubah menjadi: ${finalStatus}`,
+            user: {
+                id: users[0].id,
+                username: users[0].username,
+                oldStatus,
+                newStatus: finalStatus
+            }
+        });
+    } catch (error) {
+        console.error('Update user status error:', error);
+        res.status(500).json({ 
+            message: 'Gagal mengubah status user',
+            error: error.message 
+        });
+    }
+};
+
 module.exports = exports;

@@ -10,8 +10,6 @@ export function BadgeProvider({ children }) {
   const checkingRef = useRef(false);
   const lastCheckRef = useRef(0);
 
-  const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
-
   const showBadge = useCallback((badge) => {
     if (currentBadge) {
       setBadgeQueue(prev => [...prev, badge]);
@@ -59,13 +57,10 @@ export function BadgeProvider({ children }) {
     lastCheckRef.current = now;
 
     try {
-      const response = await fetch(`${API_URL}/badges/check`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId })
-      });
-
-      const data = await response.json();
+      // Import apiPost dynamically
+      const { apiPost } = await import('@/utils/auth');
+      
+      const data = await apiPost('/badges/check', { userId });
       
       if (data.hasNewBadges && data.newBadges.length > 0) {
         showBadges(data.newBadges);
@@ -78,7 +73,7 @@ export function BadgeProvider({ children }) {
     } finally {
       checkingRef.current = false;
     }
-  }, [showBadges, API_URL]);
+  }, [showBadges]);
 
   return (
     <BadgeContext.Provider value={{ showBadge, showBadges, checkBadges }}>

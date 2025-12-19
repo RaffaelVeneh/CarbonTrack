@@ -7,6 +7,7 @@ import { usePathname } from "next/navigation";  // <--- 2. Import usePathname
 import { BadgeProvider } from "@/contexts/BadgeContext"; // <--- 3. Import BadgeProvider
 import { SessionProvider } from "next-auth/react"; // <--- 4. Import SessionProvider
 import { ThemeProvider } from "@/contexts/ThemeContext"; // <--- 5. Import ThemeProvider
+import { SocketProvider } from "@/contexts/SocketContext"; // <--- 6. Import SocketProvider
 import Script from "next/script";
 
 const geistSans = Geist({
@@ -28,9 +29,12 @@ export default function RootLayout({ children }) {
   
   // Daftar halaman yang TIDAK boleh ada Sidebar (misal Login & Register)
   // Tambahkan juga prefix /admin untuk admin pages
-  const disableSidebar = ["/", "/login", "/register"];
+  const disableSidebar = ["/", "/login", "/register", "/banned", "/forgot-password", "/reset-password"];
   const isAdminRoute = pathname?.startsWith('/admin');
   const shouldDisableSidebar = disableSidebar.includes(pathname) || isAdminRoute;
+  
+  // Admin routes should NOT use SocketProvider (different session system)
+  const shouldUseSocket = !isAdminRoute && !disableSidebar.includes(pathname);
 
   return (
     <html lang="en" suppressHydrationWarning>
@@ -63,21 +67,37 @@ export default function RootLayout({ children }) {
         />
         <SessionProvider>
           <ThemeProvider>
-            <BadgeProvider>
-              {/* Conditional wrapper: untuk not-found dan admin, tidak pakai wrapper biasa */}
-              {shouldDisableSidebar ? (
-                // No wrapper, no sidebar, no padding - full control for page
-                children
-              ) : (
-                // Normal layout dengan sidebar dan padding
-                <div className="flex min-h-screen bg-gradient-to-br from-green-50 to-blue-50 dark:from-gray-900 dark:to-gray-800">
-                  <Sidebar />
-                  <main className={`flex-1 transition-all duration-300 md:ml-0 ${pathname === '/assistant' ? '' : 'p-8'}`}>
-                    {children}
-                  </main>
-                </div>
-              )}
-            </BadgeProvider>
+            {shouldUseSocket ? (
+              // User routes with Socket for ban notifications
+              <SocketProvider>
+                <BadgeProvider>
+                  {shouldDisableSidebar ? (
+                    children
+                  ) : (
+                    <div className="flex min-h-screen bg-gradient-to-br from-green-50 to-blue-50 dark:from-gray-900 dark:to-gray-800">
+                      <Sidebar />
+                      <main className={`flex-1 transition-all duration-300 md:ml-0 ${pathname === '/assistant' ? '' : 'p-8'}`}>
+                        {children}
+                      </main>
+                    </div>
+                  )}
+                </BadgeProvider>
+              </SocketProvider>
+            ) : (
+              // Admin routes or public routes without Socket
+              <BadgeProvider>
+                {shouldDisableSidebar ? (
+                  children
+                ) : (
+                  <div className="flex min-h-screen bg-gradient-to-br from-green-50 to-blue-50 dark:from-gray-900 dark:to-gray-800">
+                    <Sidebar />
+                    <main className={`flex-1 transition-all duration-300 md:ml-0 ${pathname === '/assistant' ? '' : 'p-8'}`}>
+                      {children}
+                    </main>
+                  </div>
+                )}
+              </BadgeProvider>
+            )}
           </ThemeProvider>
         </SessionProvider>
       </body>

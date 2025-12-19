@@ -1,4 +1,5 @@
 const db = require('../config/db');
+const { getUserData, updateUserData } = require('../services/tokenBlacklist');
 
 /**
  * MISSION SYSTEM V2 - OPTIMIZED
@@ -353,15 +354,11 @@ exports.claimMission = async (req, res) => {
         }
         const mission = missionRows[0];
 
-        // B. Ambil Data User
-        const [userRows] = await db.execute(
-            'SELECT current_level, total_xp, island_health FROM users WHERE id = ?', 
-            [userId]
-        );
-        const user = userRows[0];
+        // B. Ambil Data User - Using Redis Cache
+        const userData = await getUserData(userId);
 
         // C. Validasi Level
-        if (user.current_level < mission.min_level) {
+        if (userData.current_level < mission.min_level) {
             return res.status(403).json({ 
                 message: `Level ${mission.min_level} diperlukan untuk misi ini!` 
             });
@@ -383,19 +380,20 @@ exports.claimMission = async (req, res) => {
         );
 
         // F. Hitung Reward
-        const newXP = user.total_xp + mission.xp_reward;
+        const newXP = userData.total_xp + mission.xp_reward;
         const xpPerLevel = 100;
         let newLevel = Math.floor(newXP / xpPerLevel) + 1;
-        const leveledUp = newLevel > user.current_level;
+        const leveledUp = newLevel > userData.current_level;
 
         // G. Update Health
-        const newHealth = Math.min(100, user.island_health + mission.health_reward);
+        const newHealth = Math.min(100, userData.island_health + mission.health_reward);
 
-        // H. Update User
-        await db.execute(
-            'UPDATE users SET total_xp = ?, current_level = ?, island_health = ? WHERE id = ?',
-            [newXP, newLevel, newHealth, userId]
-        );
+        // H. Update User - Using Redis Cache
+        await updateUserData(userId, {
+            total_xp: newXP,
+            current_level: newLevel,
+            island_health: newHealth
+        });
 
         // I. CLEAR CACHE setelah claim berhasil
         clearUserCache(userId);

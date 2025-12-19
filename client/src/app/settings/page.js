@@ -5,6 +5,8 @@ import Sidebar from '@/components/Sidebar';
 import { Save, User, Mail, Lock, Shield, Calendar, Award, Zap, Flame, Clock, Eye, EyeOff, AlertCircle, CheckCircle2, Info, Sun, Moon, HelpCircle, KeyRound, ChevronDown, ChevronUp } from 'lucide-react';
 import { useTheme } from '@/contexts/ThemeContext';
 import { getUserFromStorage } from '@/utils/userStorage';
+import { apiGet, apiPut } from '@/utils/auth';
+import { checkBannedStatus } from '@/utils/bannedCheck';
 
 export default function SettingsPage() {
   const { theme, toggleTheme } = useTheme();
@@ -45,6 +47,7 @@ export default function SettingsPage() {
   };
 
   useEffect(() => {
+    if (checkBannedStatus()) return;
     const storedUser = getUserFromStorage();
     if (storedUser) {
       fetchAccountInfo(storedUser.id);
@@ -53,10 +56,9 @@ export default function SettingsPage() {
 
   const fetchAccountInfo = async (userId) => {
     try {
-      const res = await fetch(`${API_URL}/users/account-info/${userId}`);
-      const data = await res.json();
+      const data = await apiGet(`/users/account-info/${userId}`);
       
-      if (res.ok) {
+      if (data) {
         setAccountInfo(data);
         setFormData({ username: data.username });
         setShowInLeaderboard(data.show_in_leaderboard);
@@ -76,17 +78,12 @@ export default function SettingsPage() {
     const storedUser = getUserFromStorage();
 
     try {
-      const res = await fetch(`${API_URL}/users/update`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-            userId: storedUser.id,
-            username: formData.username
-        })
+      const data = await apiPut('/users/update', {
+        userId: storedUser.id,
+        username: formData.username
       });
 
-      const data = await res.json();
-      if (res.ok) {
+      if (data) {
         setMessage({ type: 'success', text: 'Username berhasil diperbarui!' });
         
         // Update localStorage
@@ -114,17 +111,12 @@ export default function SettingsPage() {
     const storedUser = getUserFromStorage();
 
     try {
-      const res = await fetch(`${API_URL}/users/privacy`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-            userId: storedUser.id,
-            showInLeaderboard: !showInLeaderboard
-        })
+      const data = await apiPut('/users/privacy', {
+        userId: storedUser.id,
+        showInLeaderboard: !showInLeaderboard
       });
 
-      const data = await res.json();
-      if (res.ok) {
+      if (data) {
         setShowInLeaderboard(!showInLeaderboard);
         setMessage({ type: 'success', text: 'Pengaturan privasi berhasil diperbarui!' });
         setTimeout(() => {
@@ -161,18 +153,13 @@ export default function SettingsPage() {
     const storedUser = getUserFromStorage();
 
     try {
-      const res = await fetch(`${API_URL}/users/change-password`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          userId: storedUser.id,
-          currentPassword: passwordData.currentPassword,
-          newPassword: passwordData.newPassword
-        })
+      const data = await apiPut('/users/change-password', {
+        userId: storedUser.id,
+        currentPassword: passwordData.currentPassword,
+        newPassword: passwordData.newPassword
       });
 
-      const data = await res.json();
-      if (res.ok) {
+      if (data) {
         setPasswordMessage({ type: 'success', text: 'Password berhasil diubah!' });
         setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' });
         setTimeout(() => {
