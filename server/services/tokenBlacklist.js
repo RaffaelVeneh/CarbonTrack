@@ -344,10 +344,12 @@ const getUserCO2 = async (userId) => {
 const getUserCO2FromDB = async (userId) => {
     try {
         const [rows] = await db.execute(
-            'SELECT COALESCE(SUM(co2_saved), 0) as total_co2 FROM logs WHERE user_id = ?',
+            'SELECT COALESCE(SUM(carbon_saved), 0) as total_co2 FROM daily_logs WHERE user_id = ?',
             [userId]
         );
-        return rows.length > 0 ? parseFloat(rows[0].total_co2) : 0;
+        const co2Value = rows.length > 0 ? parseFloat(rows[0].total_co2) : 0;
+        console.log(`🔍 DB query for user ${userId} CO2: ${co2Value} kg`);
+        return co2Value;
     } catch (error) {
         console.error('❌ Error fetching CO2 from database:', error.message);
         return 0;

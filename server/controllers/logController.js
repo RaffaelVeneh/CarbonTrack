@@ -1,4 +1,5 @@
 const db = require('../config/db');
+const { getUserCO2, invalidateUserData } = require('../services/tokenBlacklist');
 
 // 1. AMBIL DAFTAR AKTIVITAS
 exports.getActivities = async (req, res) => {
@@ -169,6 +170,14 @@ exports.createLog = async (req, res) => {
             console.log('⚠️  Could not clear mission cache:', err.message);
         }
 
+        // INVALIDATE USER DATA CACHE (XP, Level, CO2) 🔥
+        try {
+            await invalidateUserData(user_id);
+            console.log('⚡ User data cache invalidated (including CO2)');
+        } catch (err) {
+            console.log('⚠️  Could not invalidate user cache:', err.message);
+        }
+
         res.status(201).json({ 
             message: 'Log disimpan!', 
             co2_produced: carbonProduced,
@@ -182,7 +191,7 @@ exports.createLog = async (req, res) => {
     }
 };
 
-// 3. DASHBOARD SUMMARY (TETAP SAMA)
+// 3. DASHBOARD SUMMARY (OPTIMIZED WITH REDIS CACHE 🚀)
 exports.getDashboardSummary = async (req, res) => {
     try {
         const { userId } = req.params;
@@ -192,10 +201,17 @@ exports.getDashboardSummary = async (req, res) => {
             'SELECT SUM(carbon_produced) as emission, SUM(carbon_saved) as saved FROM daily_logs WHERE user_id = ? AND log_date = ?',
             [userId, today]
         );
-        const [totalRows] = await db.execute(
-            'SELECT SUM(carbon_produced) as total_emission, SUM(carbon_saved) as total_saved FROM daily_logs WHERE user_id = ?',
+        
+        // Use Redis cache for total CO2 (30 min TTL) ⚡
+        const totalSaved = await getUserCO2(userId);
+        
+        // Still need DB for total emission (not cached yet)
+        const [totalEmissionRows] = await db.execute(
+            'SELECT SUM(carbon_produced) as total_emission FROM daily_logs WHERE user_id = ?',
             [userId]
         );
+        
+        const totalEmission = parseFloat(totalEmissionRows[0]?.total_emission || 0);
         const [graphRows] = await db.execute(
             `SELECT log_date, SUM(carbon_produced) as emission, SUM(carbon_saved) as saved 
              FROM daily_logs WHERE user_id = ? GROUP BY log_date ORDER BY log_date DESC LIMIT 7`,
@@ -211,10 +227,12 @@ exports.getDashboardSummary = async (req, res) => {
         res.json({
             todayEmission: parseFloat(todayRows[0]?.emission || 0).toFixed(2),
             todaySaved: parseFloat(todayRows[0]?.saved || 0).toFixed(2),
-            totalEmission: parseFloat(totalRows[0]?.total_emission || 0).toFixed(2),
-            totalSaved: parseFloat(totalRows[0]?.total_saved || 0).toFixed(2),
+            totalEmission: totalEmission.toFixed(2),
+            totalSaved: parseFloat(totalSaved || 0).toFixed(2), // ⚡ From Redis cache
             graphData: formattedGraph
         });
+        
+        console.log(`⚡ Dashboard Summary - User ${userId}: Total CO2 Saved = ${totalSaved}kg (from cache)`);
 
     } catch (error) {
         console.error("Gagal getSummary:", error);

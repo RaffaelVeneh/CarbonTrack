@@ -100,3 +100,4 @@ logs
 
 /server/migrations/
 /backup
+/backend-test

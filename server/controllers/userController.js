@@ -1,4 +1,5 @@
 const db = require('../config/db');
+const { getUserCO2 } = require('../services/tokenBlacklist');
 
 // Ambil Leaderboard dengan Pagination
 exports.getLeaderboard = async (req, res) => {
@@ -14,19 +15,14 @@ exports.getLeaderboard = async (req, res) => {
         const totalUsers = countResult[0].total;
 
         // Get paginated data (only users who want to be shown in leaderboard)
-        // Use subquery to avoid inconsistent results from GROUP BY with pagination
-        // ORDER BY total_xp DESC, then by id ASC to ensure consistent ordering for users with same XP
+        // Fetch user data WITHOUT CO2 subquery (will use Redis cache instead) ⚡
         const query = `
             SELECT 
                 u.id, 
                 u.username, 
                 u.current_level, 
                 u.total_xp, 
-                u.island_health,
-                COALESCE(
-                    (SELECT SUM(carbon_saved) FROM daily_logs WHERE user_id = u.id), 
-                    0
-                ) as total_co2_saved
+                u.island_health
             FROM users u
             WHERE u.show_in_leaderboard = 1
             ORDER BY u.total_xp DESC, u.id ASC
@@ -34,10 +30,22 @@ exports.getLeaderboard = async (req, res) => {
         `;
         const [rows] = await db.execute(query);
         
-        console.log(`[Leaderboard] Page ${page}, Offset ${offset}, Returned ${rows.length} rows (IDs: ${rows.map(r => r.id).join(', ')}), Total ${totalUsers}`);
+        // Fetch CO2 data from Redis cache in parallel for all users 🚀
+        const rowsWithCO2 = await Promise.all(
+            rows.map(async (user) => {
+                const co2Saved = await getUserCO2(user.id);
+                return {
+                    ...user,
+                    total_co2_saved: parseFloat(co2Saved || 0)
+                };
+            })
+        );
+        
+        console.log(`[Leaderboard] Page ${page}, Offset ${offset}, Returned ${rowsWithCO2.length} rows (IDs: ${rowsWithCO2.map(r => r.id).join(', ')}), Total ${totalUsers}`);
+        console.log(`⚡ CO2 data fetched from Redis cache for ${rowsWithCO2.length} users`);
 
         res.json({
-            data: rows,
+            data: rowsWithCO2,
             pagination: {
                 currentPage: page,
                 totalPages: Math.ceil(totalUsers / limit),
