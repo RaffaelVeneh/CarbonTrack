@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useMemo, useCallback, lazy, Suspense } from 'react';
+import { useEffect, useState, useMemo, useCallback, lazy, Suspense, useRef, memo } from 'react';
 import Sidebar from '@/components/Sidebar';
 import ActivityModal from '@/components/ActivityModal';
 import NotificationDropdown from '@/components/NotificationDropdown';
@@ -17,7 +17,18 @@ import useAuth from '@/hooks/useAuth';
 const EcoPlant = lazy(() => import('@/components/EcoPlant'));
 const Confetti = lazy(() => import('react-confetti'));
 
+// 🚀 OPTIMIZATION: Memoize child components to prevent unnecessary re-renders
+const MemoizedDailyMissionsTab = memo(DailyMissionsTab);
+const MemoizedWeeklyMissionsTab = memo(WeeklyMissionsTab);
+
 export default function MissionsPage() {
+  useAuth(); // 🔐 Protect this page
+  
+  // 🚀 OPTIMIZATION: Log renders for debugging
+  useEffect(() => {
+    console.log('🔄 MissionsPage rendered');
+  });
+  
   const [missions, setMissions] = useState([]);
   const [levelInfo, setLevelInfo] = useState(null);
   const [user, setUser] = useState(null);
@@ -34,6 +45,19 @@ export default function MissionsPage() {
   const [plantHealth, setPlantHealth] = useState(0);
   const [dailyMissionsRefreshKey, setDailyMissionsRefreshKey] = useState(0);
   const [weeklyMissionsRefreshKey, setWeeklyMissionsRefreshKey] = useState(0);
+
+  // 🚀 OPTIMIZATION: useRef for stable references (prevents dependency changes)
+  const missionsRef = useRef(missions);
+  const userRef = useRef(user);
+  
+  // Keep refs in sync with state
+  useEffect(() => {
+    missionsRef.current = missions;
+  }, [missions]);
+  
+  useEffect(() => {
+    userRef.current = user;
+  }, [user]);
 
   const { checkBadges } = useBadge();
   const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
@@ -90,19 +114,25 @@ export default function MissionsPage() {
   }, []);
 
   const handleClaim = useCallback(async (missionId) => {
+    // 🚀 OPTIMIZATION: Use refs for stable access to current values
+    const currentUser = userRef.current;
+    const currentMissions = missionsRef.current;
+    
+    if (!currentUser) return;
+    
     // Prevent duplicate claims
     setIsLoading(true);
     try {
         const { apiPost } = await import('@/utils/auth');
         
         const result = await apiPost('/missions/claim', {
-            userId: user.id,
+            userId: currentUser.id,
             missionId
         });
 
         if (result) {
             // OPTIMISTIC UI UPDATE - Update state dulu tanpa fetch ulang
-            const updatedMissions = missions.map(m => 
+            const updatedMissions = currentMissions.map(m => 
                 m.id === missionId ? { ...m, is_claimed: true, is_completable: false } : m
             );
             setMissions(updatedMissions);
@@ -148,7 +178,7 @@ export default function MissionsPage() {
 
             // Badge check dengan debounce (500ms delay, tidak blocking)
             setTimeout(() => {
-                checkBadges(user.id).catch(err => console.error('Badge check error:', err));
+                checkBadges(currentUser.id).catch(err => console.error('Badge check error:', err));
             }, 500);
 
         } else {
@@ -166,7 +196,7 @@ export default function MissionsPage() {
     } finally {
         setIsLoading(false);
     }
-  }, [API_URL, user, missions, checkBadges, isLoading]);
+  }, [checkBadges]); // 🚀 OPTIMIZATION: Minimal dependencies!
 
   const closeNotification = useCallback(() => setNotification(null), []);
 
@@ -514,7 +544,7 @@ export default function MissionsPage() {
 
         {/* --- DAILY MISSIONS TAB --- */}
         {activeTab === 'daily' && (
-          <DailyMissionsTab 
+          <MemoizedDailyMissionsTab 
             userId={user.id}
             API_URL={API_URL}
             onActivitySelect={handleDoMission}
@@ -583,7 +613,7 @@ export default function MissionsPage() {
 
         {/* --- WEEKLY MISSIONS TAB --- */}
         {activeTab === 'weekly' && (
-          <WeeklyMissionsTab 
+          <MemoizedWeeklyMissionsTab 
             userId={user.id}
             API_URL={API_URL}
             onActivitySelect={handleDoMission}
