@@ -53,10 +53,13 @@ exports.getMissions = async (req, res) => {
         }
 
         // A. Ambil Data User
+        console.time('⏱️ User query');
         const [userRows] = await db.execute(
             'SELECT id, username, total_xp, current_level, island_health FROM users WHERE id = ?', 
             [userId]
         );
+        console.timeEnd('⏱️ User query');
+        
         if (userRows.length === 0) {
             console.log(`❌ User ${userId} not found`);
             return res.status(404).json({ message: 'User not found' });
@@ -71,33 +74,27 @@ exports.getMissions = async (req, res) => {
         const xpProgress = user.total_xp - ((currentLevel - 1) * xpPerLevel);
 
         // B. Ambil Misi yang Sesuai Level User + Claimed Status (BATCH QUERY 1)
-        const [missions] = await db.execute(`
-            SELECT 
-                m.*,
-                CASE WHEN um.status = 'claimed' THEN 1 ELSE 0 END as is_claimed
-            FROM missions m
-            LEFT JOIN user_missions um ON m.id = um.mission_id AND um.user_id = ? AND um.status = 'claimed'
-            WHERE m.min_level <= ? + 1
-            ORDER BY m.min_level ASC, m.difficulty ASC, m.id ASC
-        `, [userId, currentLevel]);
-
-        // C. BATCH QUERY 2: Ambil SEMUA progress data sekaligus untuk semua mission types
-        let maxDurationDays = 30; // Default
-        if (missions.length > 0) {
-            const durations = missions.map(m => parseInt(m.duration_days) || 30).filter(d => !isNaN(d) && d > 0);
-            if (durations.length > 0) {
-                maxDurationDays = Math.min(Math.max(...durations), 365);
-            }
-        }
-
-        // Skip batch queries jika tidak ada misi
-        let progressData = [];
-        let consecutiveDaysData = [];
-        let transportData = [];
-
-        if (missions.length > 0) {
-            // Query tanpa GROUP BY log_date untuk aggregasi yang benar
-            const [progressResult] = await db.execute(`
+        // C-E. OPTIMIZATION: Execute all queries in parallel for faster response
+        console.time('⏱️ Parallel missions queries');
+        const [
+            [missions],
+            [progressResult],
+            [consecutiveResult],
+            [transportResult]
+        ] = await Promise.all([
+            // Query 1: Missions with claim status
+            db.execute(`
+                SELECT 
+                    m.*,
+                    CASE WHEN um.status = 'claimed' THEN 1 ELSE 0 END as is_claimed
+                FROM missions m
+                LEFT JOIN user_missions um ON m.id = um.mission_id AND um.user_id = ? AND um.status = 'claimed'
+                WHERE m.min_level <= ? + 1
+                ORDER BY m.min_level ASC, m.difficulty ASC, m.id ASC
+            `, [userId, currentLevel]),
+            
+            // Query 2: Progress data (parallel execution)
+            db.execute(`
                 SELECT 
                     activity_id,
                     SUM(carbon_saved) as total_saved,
@@ -109,45 +106,38 @@ exports.getMissions = async (req, res) => {
                     MAX(log_date) as last_date
                 FROM daily_logs
                 WHERE user_id = ?
-                AND log_date >= DATE_SUB(CURDATE(), INTERVAL ? DAY)
+                AND log_date >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)
                 GROUP BY activity_id
-            `, [userId, maxDurationDays]);
-            progressData = progressResult || [];
+            `, [userId]),
             
-            console.log(`\n📦 Progress data loaded: ${progressData.length} unique activities for user ${userId}`);
-            console.log(`   Query params: userId=${userId}, maxDurationDays=${maxDurationDays}`);
-            console.log(`   Date cutoff: >= ${new Date(Date.now() - maxDurationDays * 24 * 60 * 60 * 1000).toISOString().split('T')[0]}`);
-            if (progressData.length > 0) {
-                progressData.forEach(row => {
-                    console.log(`  🔹 Activity ${row.activity_id} (type: ${typeof row.activity_id}): input=${row.total_input}, saved=${row.total_saved}, count=${row.activity_count}`);
-                });
-            } else {
-                console.log(`  ⚠️ No activity logs found for user ${userId}`);
-            }
-
-            // D. Query untuk consecutive days (BATCH QUERY 3)
-            // Note: LIMIT must be hardcoded for TiDB compatibility
-            const [consecutiveResult] = await db.execute(`
+            // Query 3: Consecutive days (parallel execution)
+            db.execute(`
                 SELECT DISTINCT log_date
                 FROM daily_logs
                 WHERE user_id = ?
                 AND carbon_saved > 0
                 ORDER BY log_date DESC
-                LIMIT ${maxDurationDays}
-            `, [userId]);
-            consecutiveDaysData = consecutiveResult || [];
-
-            // E. Query untuk transportation distance (BATCH QUERY 4)
-            const [transportResult] = await db.execute(`
+                LIMIT 30
+            `, [userId]),
+            
+            // Query 4: Transportation distance (parallel execution)
+            db.execute(`
                 SELECT 
                     SUM(dl.input_value) as total
                 FROM daily_logs dl
                 JOIN activities a ON dl.activity_id = a.id
                 WHERE dl.user_id = ?
                 AND a.category = 'transportation'
-                AND dl.log_date >= DATE_SUB(CURDATE(), INTERVAL ? DAY)
-            `, [userId, maxDurationDays]);
-            transportData = transportResult || [];
+                AND dl.log_date >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)
+            `, [userId])
+        ]);
+        console.timeEnd('⏱️ Parallel missions queries');
+
+        const progressData = progressResult || [];
+        const consecutiveDaysData = consecutiveResult || [];
+        const transportData = transportResult || [];
+        
+        console.log(`📦 Loaded: ${missions.length} missions, ${progressData.length} progress, ${consecutiveDaysData.length} consecutive days`);
         }
 
         // F. Process missions dengan data yang sudah di-batch
