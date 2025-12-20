@@ -138,7 +138,6 @@ exports.getMissions = async (req, res) => {
         const transportData = transportResult || [];
         
         console.log(`📦 Loaded: ${missions.length} missions, ${progressData.length} progress, ${consecutiveDaysData.length} consecutive days`);
-        }
 
         // F. Process missions dengan data yang sudah di-batch
         console.log(`\n🎯 Processing ${missions.length} missions for user ${userId} (Level ${currentLevel})`);
