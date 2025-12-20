@@ -49,6 +49,7 @@ export default function MissionsPage() {
   // 🚀 OPTIMIZATION: useRef for stable references (prevents dependency changes)
   const missionsRef = useRef(missions);
   const userRef = useRef(user);
+  const hasFetchedRef = useRef(false); // Prevent double fetch
   
   // Keep refs in sync with state
   useEffect(() => {
@@ -94,15 +95,42 @@ export default function MissionsPage() {
       return; // Will redirect to /banned
     }
 
+    // 🚀 OPTIMIZATION: Prevent double fetch in React 18 Strict Mode
+    if (hasFetchedRef.current) {
+      console.log('⚠️ Skipping duplicate fetch (already loaded)');
+      return;
+    }
+    hasFetchedRef.current = true;
+
     const userData = getUserFromStorage();
     setUser(userData);
+    
     if (userData) {
-      Promise.all([
-        fetchMissions(userData.id),
-        fetchPlantHealth(userData.id)
-      ]).finally(() => {
-        setInitialLoading(false);
-      });
+      // 🚀 OPTIMIZATION: Load critical data first, defer non-critical
+      const loadCriticalData = async () => {
+        console.time('⏱️ Initial load time');
+        try {
+          // STEP 1: Load missions immediately (most important)
+          const missionsData = await apiGet(`/missions/${userData.id}`);
+          if (missionsData.missions) setMissions(missionsData.missions);
+          if (missionsData.levelInfo) setLevelInfo(missionsData.levelInfo);
+          
+          // Show page immediately after critical data
+          setInitialLoading(false);
+          console.timeEnd('⏱️ Initial load time');
+          
+          // STEP 2: Load plant health in background (less critical)
+          setTimeout(() => {
+            fetchPlantHealth(userData.id);
+          }, 100);
+          
+        } catch (err) {
+          console.error('Load data error:', err);
+          setInitialLoading(false);
+        }
+      };
+      
+      loadCriticalData();
     } else {
       setInitialLoading(false);
     }
@@ -214,6 +242,11 @@ export default function MissionsPage() {
   const handleTabSwitch = useCallback((tab) => {
     setActiveTab(tab);
   }, []);
+
+  // 🚀 OPTIMIZATION: Don't render EcoPlant until data ready
+  const shouldRenderPlant = useMemo(() => {
+    return !initialLoading && levelInfo && plantHealth !== null;
+  }, [initialLoading, levelInfo, plantHealth]);
 
   if (!user || !levelInfo) return null;
 
