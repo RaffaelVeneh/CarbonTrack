@@ -46,8 +46,14 @@ export default function UserManagementPage() {
   }, []);
 
   const handleLogout = () => {
+    // Clear localStorage
     localStorage.removeItem('adminToken');
     localStorage.removeItem('adminInfo');
+    
+    // Clear cookies (for server-side middleware)
+    document.cookie = 'adminToken=; path=/; max-age=0';
+    document.cookie = 'adminInfo=; path=/; max-age=0';
+    
     router.push('/admin/login');
   };
 
@@ -110,13 +116,17 @@ export default function UserManagementPage() {
     }
   };
 
-  // WebSocket connection for real-time updates
+  // ⚠️ DISABLED: WebSocket connection for real-time updates
+  // Vercel does not support WebSocket on serverless functions
+  // Admin will need to manually refresh to see status updates
   useEffect(() => {
-    // Extract base URL without /api suffix for Socket.IO connection
+    console.log('⚠️ WebSocket disabled on Vercel deployment - use manual refresh');
+    return () => {}; // No cleanup needed
+    
+    /* ORIGINAL CODE - Keep for local development
     const baseURL = process.env.NEXT_PUBLIC_API_URL.replace('/api', '');
     console.log('🔌 Initializing WebSocket connection to:', baseURL);
     
-    // Connect to WebSocket server
     const socket = io(baseURL, {
       transports: ['websocket', 'polling'],
       reconnection: true,
@@ -127,7 +137,6 @@ export default function UserManagementPage() {
 
     socket.on('connect', () => {
       console.log('✅ Admin panel connected to WebSocket, Socket ID:', socket.id);
-      // Join admin room to receive user status updates
       socket.emit('join_admin', 'admin_room');
       console.log('📢 Emitted join_admin event to join admin_room');
     });
@@ -136,19 +145,16 @@ export default function UserManagementPage() {
       console.error('❌ WebSocket connection error:', error);
     });
 
-    // Listen for user status changes (login/logout/ban/unban)
     socket.on('user_status_changed', (data) => {
       console.log('📡 RECEIVED user_status_changed event:', data);
       console.log('Current users count:', users.length);
       
-      // Update user in the list
       setUsers(prevUsers => {
         console.log('🔄 Updating users list, current count:', prevUsers.length);
         const existingUserIndex = prevUsers.findIndex(u => u.id === data.userId);
         console.log('User index in list:', existingUserIndex);
         
         if (existingUserIndex !== -1) {
-          // User exists in list - update status and last_login
           const updatedUsers = [...prevUsers];
           updatedUsers[existingUserIndex] = {
             ...updatedUsers[existingUserIndex],
@@ -158,7 +164,6 @@ export default function UserManagementPage() {
           console.log('✅ Updated user:', updatedUsers[existingUserIndex]);
           return updatedUsers;
         } else {
-          // User not in list yet - could be a new user, don't auto-add to avoid pagination issues
           console.log('⚠️ User not found in current list (userId:', data.userId, ')');
           return prevUsers;
         }
@@ -173,6 +178,7 @@ export default function UserManagementPage() {
       console.log('🔌 Cleaning up WebSocket connection');
       socket.disconnect();
     };
+    */
   }, []);
 
   // Initial load

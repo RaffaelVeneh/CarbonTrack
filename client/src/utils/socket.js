@@ -3,6 +3,13 @@ import { io } from 'socket.io-client';
 let socket = null;
 
 export const initializeSocket = (userId) => {
+  // ⚠️ DISABLED: Vercel does not support WebSocket connections
+  // WebSocket is disabled because Vercel's serverless architecture doesn't support persistent connections
+  // Real-time notifications are replaced with polling or manual refresh
+  console.log('⚠️ WebSocket disabled on Vercel deployment');
+  return null;
+  
+  /* ORIGINAL CODE - Keep for local development
   if (socket) {
     console.log('⚠️ Socket already initialized');
     return socket;
@@ -35,6 +42,7 @@ export const initializeSocket = (userId) => {
   });
 
   return socket;
+  */
 };
 
 export const getSocket = () => {

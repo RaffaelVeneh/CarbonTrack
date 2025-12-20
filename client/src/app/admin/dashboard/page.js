@@ -72,8 +72,14 @@ export default function AdminDashboard() {
   };
 
   const handleLogout = () => {
+    // Clear localStorage
     localStorage.removeItem('adminToken');
     localStorage.removeItem('adminInfo');
+    
+    // Clear cookies (for server-side middleware)
+    document.cookie = 'adminToken=; path=/; max-age=0';
+    document.cookie = 'adminInfo=; path=/; max-age=0';
+    
     router.push('/admin/login');
   };
 

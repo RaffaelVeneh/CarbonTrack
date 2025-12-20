@@ -31,9 +31,14 @@ export default function AdminLoginPage() {
       const data = await res.json();
 
       if (res.ok) {
-        // Store token and admin info
+        // Store token and admin info in localStorage (for client-side JS)
         localStorage.setItem('adminToken', data.token);
         localStorage.setItem('adminInfo', JSON.stringify(data.admin));
+        
+        // Store token in cookies (for server-side middleware protection)
+        // This protects against JS-disabled bypass attacks
+        document.cookie = `adminToken=${data.token}; path=/; max-age=${7 * 24 * 60 * 60}; SameSite=Lax`;
+        document.cookie = `adminInfo=${JSON.stringify(data.admin)}; path=/; max-age=${7 * 24 * 60 * 60}; SameSite=Lax`;
         
         // Redirect to admin dashboard
         router.push('/admin/dashboard');
